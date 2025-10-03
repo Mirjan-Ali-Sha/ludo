@@ -102,17 +102,17 @@
         }
         
         #game-message {
-            font-size: 1.1em;
+            font-size: 1em; /* Smaller font size */
             font-weight: bold;
             color: #f1c40f;
-            height: 40px;
+            height: 20px; /* Reduced height */
             text-align: center;
         }
 
         #turn-indicator {
-            font-size: 1.5em;
+            font-size: 1.3em; /* Smaller font size */
             font-weight: bold;
-            padding: 10px 20px;
+            padding: 8px 16px; /* Adjusted padding */
             border-radius: 10px;
             background-color: #34495e;
             transition: background-color 0.3s;
@@ -123,6 +123,7 @@
             width: var(--dice-size);
             height: var(--dice-size);
             perspective: 1000px;
+            cursor: pointer; /* Indicates it's clickable */
         }
 
         .dice {
@@ -196,29 +197,41 @@
         }
         /* --- DICE STYLES END --- */
 
-        #roll-dice-btn {
-            padding: 15px 30px;
-            font-size: 1.2em;
+        .game-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .game-buttons button {
+            padding: 10px 20px;
+            font-size: 1em;
             font-weight: bold;
             color: white;
-            background: linear-gradient(145deg, #3498db, #2980b9);
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             cursor: pointer;
-            box-shadow: 0 5px #1f648b;
             transition: all 0.1s ease-in-out;
         }
-
-        #roll-dice-btn:disabled {
-            background: #7f8c8d;
-            box-shadow: 0 5px #606b6c;
-            cursor: not-allowed;
+        
+        #save-btn {
+            background: linear-gradient(145deg, #27ae60, #229954);
+            box-shadow: 0 4px #1e8449;
+        }
+        #save-btn:active {
+             transform: translateY(4px);
+             box-shadow: 0 0 #1e8449;
         }
 
-        #roll-dice-btn:active:not(:disabled) {
-            transform: translateY(5px);
-            box-shadow: 0 0 #1f648b;
+        #reset-btn {
+            background: linear-gradient(145deg, #e74c3c, #c0392b);
+            box-shadow: 0 4px #a93226;
         }
+        #reset-btn:active {
+             transform: translateY(4px);
+             box-shadow: 0 0 #a93226;
+        }
+
 
         /* Media Query for larger screens */
         @media (min-width: 800px) {
@@ -260,7 +273,7 @@
         <div class="controls">
             <div id="game-message">Roll the dice to start!</div>
             <div id="turn-indicator">Player 1's Turn</div>
-            <div class="dice-container">
+            <div class="dice-container" id="dice-container">
                 <div class="dice" id="dice">
                     <div class="face front"><div class="dot"></div></div>
                     <div class="face back"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
@@ -270,7 +283,10 @@
                     <div class="face left"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
                 </div>
             </div>
-            <button id="roll-dice-btn">Roll Dice</button>
+            <div class="game-buttons">
+                <button id="save-btn">Save Game</button>
+                <button id="reset-btn">Reset Game</button>
+            </div>
         </div>
     </div>
 
@@ -280,10 +296,12 @@
         const gameContainer = document.querySelector('.game-container');
         const canvas = document.getElementById('ludo-canvas');
         const ctx = canvas.getContext('2d');
-        const rollDiceBtn = document.getElementById('roll-dice-btn');
+        const diceContainer = document.getElementById('dice-container');
         const diceEl = document.getElementById('dice');
         const turnIndicatorEl = document.getElementById('turn-indicator');
         const gameMessageEl = document.getElementById('game-message');
+        const saveBtn = document.getElementById('save-btn');
+        const resetBtn = document.getElementById('reset-btn');
         
         let boardSize;
         let SQUARE_SIZE;
@@ -330,6 +348,13 @@
         const safeZones = [0, 8, 13, 21, 26, 34, 39, 47];
 
         let diceBag = [];
+        let tokens = [];
+        let currentPlayerIndex = 0;
+        let diceRoll = 0;
+        let gameState = 'roll';
+        let movableTokens = [];
+        let captureMadeThisTurn = false;
+        let tokenFinishedThisTurn = false;
 
         function fillAndShuffleDiceBag() {
             diceBag = [];
@@ -345,14 +370,6 @@
             }
         }
 
-        let tokens = [];
-        let currentPlayerIndex = 0;
-        let diceRoll = 0;
-        let gameState = 'roll';
-        let movableTokens = [];
-        let captureMadeThisTurn = false;
-        let tokenFinishedThisTurn = false;
-
         function initializeGame() {
             tokens = [];
             for (let i = 0; i < 4; i++) {
@@ -364,10 +381,56 @@
             currentPlayerIndex = 0;
             gameState = 'roll';
             updateTurnIndicator();
-            diceEl.className = 'dice'; 
-            rollDiceBtn.disabled = false;
+            diceEl.className = 'dice';
+            diceContainer.style.cursor = 'pointer';
             gameMessageEl.textContent = 'Roll the dice to start!';
             handleResize();
+        }
+        
+        function resetGame() {
+            localStorage.removeItem('ludoGameState');
+            initializeGame();
+        }
+
+        function saveGame() {
+            const gameStateToSave = {
+                tokens,
+                currentPlayerIndex,
+                diceBag,
+                diceRoll,
+                gameState
+            };
+            localStorage.setItem('ludoGameState', JSON.stringify(gameStateToSave));
+            gameMessageEl.textContent = "Game Saved!";
+            setTimeout(() => {
+                if(gameState === 'roll') gameMessageEl.textContent = 'Roll the dice!';
+                else if (gameState === 'move') gameMessageEl.textContent = 'Click a highlighted token to move.';
+            }, 2000);
+        }
+
+        function loadGame() {
+            const savedState = JSON.parse(localStorage.getItem('ludoGameState'));
+            if (savedState) {
+                tokens = savedState.tokens;
+                currentPlayerIndex = savedState.currentPlayerIndex;
+                diceBag = savedState.diceBag;
+                diceRoll = savedState.diceRoll;
+                gameState = savedState.gameState;
+                
+                updateTurnIndicator();
+                diceEl.className = `dice show-${diceRoll}`;
+                if(gameState === 'roll') {
+                     gameMessageEl.textContent = 'Game Loaded. Roll the dice!';
+                     diceContainer.style.cursor = 'pointer';
+                } else if(gameState === 'move') {
+                    gameMessageEl.textContent = 'Game Loaded. Make your move.';
+                    checkForMovableTokens(); // Recalculate to show highlights
+                }
+                
+                handleResize();
+                return true;
+            }
+            return false;
         }
 
         function handleRollDice() {
@@ -375,14 +438,13 @@
             captureMadeThisTurn = false;
             tokenFinishedThisTurn = false;
             gameState = 'rolling'; 
-            rollDiceBtn.disabled = true;
+            diceContainer.style.cursor = 'not-allowed';
             diceEl.className = 'dice rolling'; 
             setTimeout(() => {
                 if (diceBag.length === 0) fillAndShuffleDiceBag();
                 diceRoll = diceBag.pop();
                 diceEl.className = 'dice'; 
                 diceEl.classList.add(`show-${diceRoll}`);
-                rollDiceBtn.disabled = false;
                 checkForMovableTokens();
             }, 1500); 
         }
@@ -390,7 +452,7 @@
         function switchPlayer() {
             currentPlayerIndex = (currentPlayerIndex + 1) % 4;
             gameState = 'roll';
-            rollDiceBtn.disabled = false;
+            diceContainer.style.cursor = 'pointer';
             updateTurnIndicator();
             gameMessageEl.textContent = 'Roll the dice!';
         }
@@ -422,7 +484,6 @@
             if (gameState !== 'move' && gameState !== 'rolling') return;
             gameState = 'animating';
             movableTokens = [];
-            rollDiceBtn.disabled = true;
             gameMessageEl.textContent = 'Moving...';
             if (token.status === 'home' && diceRoll === 6) {
                 token.status = 'active';
@@ -454,11 +515,10 @@
             if (winner !== -1) {
                 gameMessageEl.textContent = `Player ${winner + 1} Wins!`;
                 gameState = 'gameover';
-                rollDiceBtn.disabled = true;
             } else {
                  if (diceRoll === 6 || captureMadeThisTurn || tokenFinishedThisTurn) {
                     gameState = 'roll';
-                    rollDiceBtn.disabled = false;
+                    diceContainer.style.cursor = 'pointer';
                     if (tokenFinishedThisTurn) gameMessageEl.textContent = 'Token is home! Roll again.';
                     else if (captureMadeThisTurn) gameMessageEl.textContent = 'You captured a token! Roll again.';
                     else gameMessageEl.textContent = 'You rolled a 6! Roll again.';
@@ -705,9 +765,13 @@
         }
         
         function handleResize() {
-            const controlsHeight = document.querySelector('.controls').offsetHeight;
-            const titleHeight = document.querySelector('.game-container > h1').offsetHeight;
-            const availableHeight = window.innerHeight - controlsHeight - titleHeight - 60; // Extra padding
+            const controls = document.querySelector('.controls');
+            const title = document.querySelector('.game-container > h1');
+            
+            const controlsHeight = controls ? controls.offsetHeight : 0;
+            const titleHeight = title ? title.offsetHeight : 0;
+            
+            const availableHeight = window.innerHeight - (controlsHeight + titleHeight + 60); // Extra padding
             const availableWidth = window.innerWidth - 40;
             
             if (window.innerWidth < 800) { // Mobile view
@@ -723,6 +787,10 @@
             drawEverything();
         }
 
+        diceContainer.addEventListener('click', handleRollDice);
+        saveBtn.addEventListener('click', saveGame);
+        resetBtn.addEventListener('click', resetGame);
+        canvas.addEventListener('click', handleCanvasClick);
         window.addEventListener('resize', handleResize);
 
         setTimeout(() => {
@@ -732,7 +800,9 @@
                 document.body.style.overflow = 'auto';
             });
             gameContainer.classList.remove('hidden');
-            initializeGame();
+            if (!loadGame()) {
+                initializeGame();
+            }
         }, 4000);
     });
     </script>
