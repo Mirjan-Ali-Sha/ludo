@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ludo Universe - Live Demo</title>
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Mirjan-Ali-Sha/ludo/main/Ludo_App-icon.png">
     <style>
         :root {
             --player1-color: #ff4757;
@@ -24,15 +25,63 @@
             margin: 0;
             padding: 10px;
             box-sizing: border-box;
+            overflow: hidden;
         }
+
+        /* --- SPLASH SCREEN STYLES --- */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #2c3e50;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 1s ease-out;
+        }
+        #splash-screen img {
+            width: 150px;
+            height: 150px;
+            margin-bottom: 20px;
+            border-radius: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        #splash-screen h1 {
+            font-size: 3em;
+            margin: 0;
+            color: #ecf0f1;
+        }
+        #splash-screen .tagline {
+            font-size: 1.2em;
+            margin-top: 10px;
+            color: #bdc3c7;
+        }
+        #splash-screen .author {
+            font-size: 1em;
+            margin-top: 40px;
+            color: #7f8c8d;
+        }
+        .hidden {
+            display: none !important;
+        }
+        /* --- END SPLASH STYLES --- */
+
 
         .game-container {
             display: flex;
-            flex-direction: column; /* Default to vertical stack for mobile-first */
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             gap: 20px;
             width: 100%;
+        }
+        
+        .game-container > h1 {
+            margin: 0;
         }
 
         #ludo-canvas {
@@ -174,21 +223,41 @@
         /* Media Query for larger screens */
         @media (min-width: 800px) {
             .game-container {
-                flex-direction: row;
+                display: grid;
+                grid-template-columns: auto 1fr;
+                grid-template-rows: auto 1fr;
+                grid-template-areas:
+                    "title title"
+                    "canvas controls";
                 align-items: center;
                 gap: 50px;
             }
+            .game-container > h1 {
+                grid-area: title;
+                text-align: center;
+            }
             #ludo-canvas {
+                grid-area: canvas;
                 max-height: 90vh;
+            }
+            .controls {
+                grid-area: controls;
             }
         }
     </style>
 </head>
 <body>
-    <div class="game-container">
+    <div id="splash-screen">
+        <img src="https://raw.githubusercontent.com/Mirjan-Ali-Sha/ludo/main/Ludo_App-icon.png" alt="Ludo Universe Icon">
+        <h1>Ludo Universe</h1>
+        <p class="tagline">Enjoy your free time together</p>
+        <p class="author">By Mirjan Ali Sha</p>
+    </div>
+
+    <div class="game-container hidden">
+        <h1>Ludo Universe</h1>
         <canvas id="ludo-canvas"></canvas>
         <div class="controls">
-            <h1>Ludo Universe</h1>
             <div id="game-message">Roll the dice to start!</div>
             <div id="turn-indicator">Player 1's Turn</div>
             <div class="dice-container">
@@ -207,6 +276,8 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+        const splashScreen = document.getElementById('splash-screen');
+        const gameContainer = document.querySelector('.game-container');
         const canvas = document.getElementById('ludo-canvas');
         const ctx = canvas.getContext('2d');
         const rollDiceBtn = document.getElementById('roll-dice-btn');
@@ -296,7 +367,7 @@
             diceEl.className = 'dice'; 
             rollDiceBtn.disabled = false;
             gameMessageEl.textContent = 'Roll the dice to start!';
-            handleResize(); // Initial sizing
+            handleResize();
         }
 
         function handleRollDice() {
@@ -635,7 +706,8 @@
         
         function handleResize() {
             const controlsHeight = document.querySelector('.controls').offsetHeight;
-            const availableHeight = window.innerHeight - controlsHeight - 40; // 40 for padding/margin
+            const titleHeight = document.querySelector('.game-container > h1').offsetHeight;
+            const availableHeight = window.innerHeight - controlsHeight - titleHeight - 60; // Extra padding
             const availableWidth = window.innerWidth - 40;
             
             if (window.innerWidth < 800) { // Mobile view
@@ -651,11 +723,17 @@
             drawEverything();
         }
 
-        rollDiceBtn.addEventListener('click', handleRollDice);
-        canvas.addEventListener('click', handleCanvasClick);
         window.addEventListener('resize', handleResize);
 
-        initializeGame();
+        setTimeout(() => {
+            splashScreen.style.opacity = '0';
+            splashScreen.addEventListener('transitionend', () => {
+                splashScreen.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+            });
+            gameContainer.classList.remove('hidden');
+            initializeGame();
+        }, 4000);
     });
     </script>
 </body>
