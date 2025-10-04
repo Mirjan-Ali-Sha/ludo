@@ -273,7 +273,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
+            background-color: rgba(0, 0, 0, 0.7);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -281,25 +281,23 @@
         }
 
         .modal-content {
-            background: #34495e;
-            padding: 30px;
+            background: white;
+            color: #2c3e50;
+            padding: 20px;
             border-radius: 15px;
             text-align: center;
             box-shadow: 0 5px 20px rgba(0,0,0,0.4);
             margin: 15px;
+            max-width: 300px;
         }
 
         .modal-content h2 {
             margin-top: 0;
         }
-        .modal-content p {
-            margin: 10px 0 20px;
-            color: #ecf0f1;
-        }
-
+        
         .modal-buttons {
             display: flex;
-            flex-wrap: wrap; /* Allow buttons to wrap on small screens */
+            flex-wrap: wrap;
             justify-content: center;
             gap: 15px;
             margin-top: 20px;
@@ -370,11 +368,10 @@
     <div id="exit-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <h2>Unsaved Progress</h2>
-            <p>Do you want to save before exiting?</p>
+            <p>Do you want to save your progress?</p>
             <div class="modal-buttons">
-                <button id="save-exit-btn" class="game-buttons" style="background: #27ae60;">Save & Exit</button>
-                <button id="exit-anyway-btn" class="game-buttons" style="background: #e74c3c;">Exit Anyway</button>
-                <button id="cancel-exit-btn" class="game-buttons" style="background: #95a5a6;">Cancel</button>
+                <button id="save-exit-btn" class="game-buttons" style="background: #27ae60;">Yes</button>
+                <button id="exit-anyway-btn" class="game-buttons" style="background: #e74c3c;">No</button>
             </div>
         </div>
     </div>
@@ -400,13 +397,11 @@
         const exitModal = document.getElementById('exit-modal');
         const saveExitBtn = document.getElementById('save-exit-btn');
         const exitAnywayBtn = document.getElementById('exit-anyway-btn');
-        const cancelExitBtn = document.getElementById('cancel-exit-btn');
         
         let boardSize;
         let SQUARE_SIZE;
         let TOKEN_RADIUS;
         let isMuted = false;
-        let isExiting = false;
 
         const sounds = {
             roll: new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } }).toDestination(),
@@ -592,6 +587,12 @@
         function switchPlayer() {
             let nextPlayer = (currentPlayerIndex + 1) % 4;
             while(playerRanks.includes(nextPlayer)) {
+                if (playerRanks.length >= 3) {
+                    gameState = 'gameover';
+                    gameMessageEl.textContent = 'Game Over! Press Reset.';
+                    diceContainer.style.cursor = 'not-allowed';
+                    return;
+                }
                 nextPlayer = (nextPlayer + 1) % 4;
             }
             currentPlayerIndex = nextPlayer;
@@ -661,11 +662,12 @@
             }
             checkForCapture(token);
             const winner = checkForWinner();
-            if (winner !== -1 && !playerRanks.includes(winner)) {
-                playerRanks.push(winner);
-                winnerMessageEl.textContent = `Player ${winner + 1} finished!`;
-                playSound('win');
 
+            if (winner !== -1) {
+                playerRanks.push(winner);
+                winnerMessageEl.textContent = `Player ${winner + 1} has finished!`;
+                playSound('win');
+                
                 if (playerRanks.length >= 3) {
                     gameMessageEl.textContent = "Game Over!";
                     gameState = 'gameover';
@@ -676,16 +678,17 @@
                     newGameBtn.textContent = "New Game";
                 }
                 gameOverModal.classList.remove('hidden');
+                return;
+            }
+            
+            if (diceRoll === 6 || captureMadeThisTurn || tokenFinishedThisTurn) {
+                gameState = 'roll';
+                diceContainer.style.cursor = 'pointer';
+                if (tokenFinishedThisTurn) gameMessageEl.textContent = 'Token is home! Roll again.';
+                else if (captureMadeThisTurn) gameMessageEl.textContent = 'You captured a token! Roll again.';
+                else gameMessageEl.textContent = 'You rolled a 6! Roll again.';
             } else {
-                 if (diceRoll === 6 || captureMadeThisTurn || tokenFinishedThisTurn) {
-                    gameState = 'roll';
-                    diceContainer.style.cursor = 'pointer';
-                    if (tokenFinishedThisTurn) gameMessageEl.textContent = 'Token is home! Roll again.';
-                    else if (captureMadeThisTurn) gameMessageEl.textContent = 'You captured a token! Roll again.';
-                    else gameMessageEl.textContent = 'You rolled a 6! Roll again.';
-                 } else {
-                    switchPlayer();
-                 }
+                switchPlayer();
             }
             drawEverything();
         }
@@ -970,6 +973,7 @@
         diceContainer.addEventListener('click', handleRollDice);
         saveBtn.addEventListener('click', saveGame);
         resetBtn.addEventListener('click', resetGame);
+        muteBtn.addEventListener('click', () => toggleMute(!isMuted));
         canvas.addEventListener('click', handleCanvasClick);
         window.addEventListener('resize', handleResize);
         
@@ -989,29 +993,10 @@
             }
         });
 
-        cancelExitBtn.addEventListener('click', () => {
-            exitModal.classList.add('hidden');
-        });
-
-        exitAnywayBtn.addEventListener('click', () => {
-            isExiting = true;
-            history.back();
-        });
-
-        saveExitBtn.addEventListener('click', () => {
-            saveGame();
-            isExiting = true;
-            history.back();
-        });
-
-        window.addEventListener('popstate', (e) => {
-            if (isExiting || isGameSaved || gameState === 'gameover') {
-                return;
-            }
-            
-            if (location.hash !== '#game') {
-                exitModal.classList.remove('hidden');
-                history.pushState({ page: 1 }, "Ludo", "#game");
+        window.addEventListener('beforeunload', (e) => {
+            if (!isGameSaved && gameState !== 'gameover') {
+                e.preventDefault();
+                e.returnValue = '';
             }
         });
         
@@ -1028,17 +1013,16 @@
             splashScreen.addEventListener('transitionend', () => {
                 splashScreen.classList.add('hidden');
                 document.body.style.overflow = 'auto';
-            });
-            gameWrapper.classList.remove('hidden');
+                
+                gameWrapper.classList.remove('hidden');
             
-            history.pushState({ page: 1 }, "Ludo", "#game");
-            
-            const savedSoundSetting = JSON.parse(localStorage.getItem('ludoSoundSetting'));
-            toggleMute(savedSoundSetting ? savedSoundSetting.muted : false);
+                const savedSoundSetting = JSON.parse(localStorage.getItem('ludoSoundSetting'));
+                toggleMute(savedSoundSetting ? savedSoundSetting.muted : false);
 
-            if (!loadGame()) {
-                initializeGame();
-            }
+                if (!loadGame()) {
+                    initializeGame();
+                }
+            }, { once: true });
         }, 3000);
     });
     </script>
