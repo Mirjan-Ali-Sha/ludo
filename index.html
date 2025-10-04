@@ -14,8 +14,8 @@
     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Mirjan-Ali-Sha/ludo/main/Ludo_App-icon.png">
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/Mirjan-Ali-Sha/ludo/main/Ludo_App-icon.png">
     
-    <!-- Link to the external manifest file -->
-    <link rel="manifest" href="manifest.json">
+    <!-- Inline Manifest -->
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIkx1ZG8gVW5pdmVyc2UiLAogICJzaG9ydF9uYW1lIjogIkx1ZG8iLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzJjM2U1MCIsCiAgInRoZW1lX2NvbG9yIjogIiMyYzNlNTciLAogICJkZXNjcmlwdGlvbiI6ICJBIGZ1biBMdWRvIGdhbWUgZm9yIGV2ZXJ5b25lLiIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImh0dHBzOi8vcmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbS9NaXJqYW4tQWxpLVNoYS9sdWRvL21haWW4vTHVkb19BcHAtaWNvbi5wbmciLAogICAgICAic2l6ZXMiOiAiMTkyeDE5MiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIKICAgIH0sCiAgICB7CiAgICAgICJzcmMiOiAiaHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL01pcmphbi1BbGktU2hhL2x1ZG8vbWFpbi9MdWRvX0FwcC1pY29uLnBuZyIsCiAgICAgICJzaXplcyI6ICI1MTJ4NTEyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfQogIF0KfQ==">
 
     <style>
         :root {
@@ -367,11 +367,17 @@
         const safeZones = [0, 8, 13, 21, 26, 34, 39, 47];
 
         let diceBag = [];
+        let tokens = [];
+        let currentPlayerIndex = 0;
+        let diceRoll = 0;
+        let gameState = 'roll';
+        let movableTokens = [];
+        let captureMadeThisTurn = false;
+        let tokenFinishedThisTurn = false;
 
         function fillAndShuffleDiceBag() {
             diceBag = [];
-            const distribution = { 1: 8, 2: 9, 3: 10, 4: 11, 5: 12, 6: 12 };
-
+            const distribution = { 1: 5, 2: 8, 3: 10, 4: 12, 5: 15, 6: 15 };
             for (const number in distribution) {
                 for (let i = 0; i < distribution[number]; i++) {
                     diceBag.push(parseInt(number));
@@ -407,8 +413,11 @@
 
         function saveGame() {
             const gameStateToSave = {
-                tokens: tokens,
-                currentPlayerIndex: currentPlayerIndex,
+                tokens,
+                currentPlayerIndex,
+                diceBag,
+                diceRoll,
+                gameState
             };
             localStorage.setItem('ludoGameState', JSON.stringify(gameStateToSave));
             gameMessageEl.textContent = "Game Saved!";
@@ -423,15 +432,19 @@
             if (savedState) {
                 tokens = savedState.tokens;
                 currentPlayerIndex = savedState.currentPlayerIndex;
-                
-                fillAndShuffleDiceBag();
-                gameState = 'roll';
-                diceRoll = 0;
+                diceBag = savedState.diceBag;
+                diceRoll = savedState.diceRoll;
+                gameState = savedState.gameState;
                 
                 updateTurnIndicator();
-                diceEl.className = 'dice';
-                gameMessageEl.textContent = 'Game Loaded. Roll the dice!';
-                diceContainer.style.cursor = 'pointer';
+                diceEl.className = `dice show-${diceRoll}`;
+                if(gameState === 'roll') {
+                     gameMessageEl.textContent = 'Game Loaded. Roll the dice!';
+                     diceContainer.style.cursor = 'pointer';
+                } else if(gameState === 'move') {
+                    gameMessageEl.textContent = 'Game Loaded. Make your move.';
+                    checkForMovableTokens();
+                }
                 
                 handleResize();
                 return true;
@@ -704,6 +717,13 @@
                     ctx.beginPath();
                     ctx.arc(x, y, TOKEN_RADIUS, 0, 2 * Math.PI);
                     ctx.fill();
+                    ctx.strokeStyle = '#D4AF37';
+                    ctx.shadowColor = '#FFD700';
+                    ctx.shadowBlur = 3;
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    ctx.shadowColor = 'transparent';
+                    ctx.shadowBlur = 0;
                 }
             });
         }
@@ -764,21 +784,18 @@
         }
         
         function handleResize() {
-            const controls = document.querySelector('.controls');
-            const title = document.querySelector('.game-wrapper > h1');
-            
-            const controlsHeight = controls ? controls.offsetHeight : 0;
-            const titleHeight = title ? title.offsetHeight : 0;
+            const controlsHeight = document.querySelector('.controls').offsetHeight;
+            const titleHeight = document.querySelector('.game-wrapper > h1').offsetHeight;
             
             const totalVerticalSpace = window.innerHeight;
-            const nonCanvasHeight = controlsHeight + titleHeight + 40;
+            const nonCanvasHeight = controlsHeight + titleHeight + 40; // 40 for gaps
             
             const availableHeight = totalVerticalSpace - nonCanvasHeight;
             const availableWidth = window.innerWidth * 0.95;
             
-            if (window.matchMedia("(min-width: 800px) and (min-height: 600px)").matches) {
+            if (window.matchMedia("(min-width: 800px) and (min-height: 600px)").matches) { // Desktop View
                 boardSize = Math.min(window.innerHeight * 0.9, 600)
-            } else {
+            } else { // Mobile view
                  boardSize = Math.floor(Math.min(availableWidth, availableHeight));
             }
             
@@ -797,12 +814,31 @@
         canvas.addEventListener('click', handleCanvasClick);
         window.addEventListener('resize', handleResize);
 
+        // --- PWA Service Worker Registration ---
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker: Registered'))
-                    .catch(err => console.error('Service Worker: Registration Failed: ', err));
-            });
+            const swJS = `
+                const CACHE_NAME = 'ludo-universe-v1';
+                const urlsToCache = [
+                    './',
+                    'https://raw.githubusercontent.com/Mirjan-Ali-Sha/ludo/main/Ludo_App-icon.png'
+                ];
+                self.addEventListener('install', event => {
+                    event.waitUntil(
+                        caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
+                    );
+                });
+                self.addEventListener('fetch', event => {
+                    event.respondWith(
+                        caches.match(event.request).then(response => response || fetch(event.request))
+                    );
+                });
+            `;
+            const swBlob = new Blob([swJS], {type: 'application/javascript'});
+            const swUrl = URL.createObjectURL(swBlob);
+
+            navigator.serviceWorker.register(swUrl)
+                .then(reg => console.log('Service worker registered.', reg))
+                .catch(err => console.error('Service worker registration failed: ', err));
         }
 
         setTimeout(() => {
