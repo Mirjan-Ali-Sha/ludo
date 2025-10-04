@@ -267,7 +267,6 @@
             font-size: 1.2em;
         }
 
-        /* MODAL STYLES */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -291,6 +290,10 @@
 
         .modal-content h2 {
             margin-top: 0;
+        }
+        .modal-content p {
+            margin: 10px 0 20px;
+            color: #ecf0f1;
         }
 
         .modal-buttons {
@@ -352,13 +355,24 @@
         </div>
     </div>
 
-    <!-- Game Over Modal -->
     <div id="game-over-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <h2 id="winner-message">Player 1 Wins!</h2>
             <div class="modal-buttons">
                 <button id="continue-game-btn" class="game-buttons" style="background: #27ae60;">Continue</button>
                 <button id="new-game-btn" class="game-buttons" style="background: #3498db;">New Game</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="exit-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Unsaved Progress</h2>
+            <p>Do you want to save before you exit?</p>
+            <div class="modal-buttons">
+                <button id="save-exit-btn" class="game-buttons" style="background: #27ae60;">Save & Exit</button>
+                <button id="exit-anyway-btn" class="game-buttons" style="background: #e74c3c;">Exit Anyway</button>
+                <button id="cancel-exit-btn" class="game-buttons" style="background: #95a5a6;">Cancel</button>
             </div>
         </div>
     </div>
@@ -381,11 +395,16 @@
         const winnerMessageEl = document.getElementById('winner-message');
         const continueGameBtn = document.getElementById('continue-game-btn');
         const newGameBtn = document.getElementById('new-game-btn');
+        const exitModal = document.getElementById('exit-modal');
+        const saveExitBtn = document.getElementById('save-exit-btn');
+        const exitAnywayBtn = document.getElementById('exit-anyway-btn');
+        const cancelExitBtn = document.getElementById('cancel-exit-btn');
         
         let boardSize;
         let SQUARE_SIZE;
         let TOKEN_RADIUS;
         let isMuted = false;
+        let isExiting = false;
 
         const sounds = {
             roll: new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } }).toDestination(),
@@ -411,15 +430,21 @@
             }
         }
         
+        const savedSoundSetting = JSON.parse(localStorage.getItem('ludoSoundSetting'));
+        if (savedSoundSetting) {
+            isMuted = savedSoundSetting.muted;
+        }
+        muteBtn.textContent = isMuted ? '🔇' : '🔊';
+
         muteBtn.addEventListener('click', () => {
             isMuted = !isMuted;
             muteBtn.textContent = isMuted ? '🔇' : '🔊';
+            localStorage.setItem('ludoSoundSetting', JSON.stringify({ muted: isMuted }));
         });
 
         document.body.addEventListener('click', async () => {
             if (Tone.context.state !== 'running') {
                 await Tone.start();
-                console.log('Audio context started');
             }
         }, { once: true });
 
@@ -835,12 +860,12 @@
                     
                     let drawY = y;
                     if (movableTokens.includes(token)) {
-                        drawY = y - TOKEN_RADIUS * 0.3; // LIFT EFFECT
+                        drawY = y - TOKEN_RADIUS * 0.3;
                     }
                     
                     if (movableTokens.includes(token)) {
                         const pinRadius = TOKEN_RADIUS * 1.2;
-                        const pinTipY = drawY + TOKEN_RADIUS * 1.9; // LONGER POINTER
+                        const pinTipY = drawY + TOKEN_RADIUS * 1.9;
                         ctx.fillStyle = playerColorSet.dark;
                         ctx.globalAlpha = 0.6;
                         ctx.beginPath();
@@ -921,8 +946,11 @@
         }
         
         function handleResize() {
-            const controlsHeight = document.querySelector('.controls').offsetHeight;
-            const titleHeight = document.querySelector('.game-wrapper > h1').offsetHeight;
+            const controls = document.querySelector('.controls');
+            const title = document.querySelector('.game-wrapper > h1');
+            
+            const controlsHeight = controls ? controls.offsetHeight : 0;
+            const titleHeight = title ? title.offsetHeight : 0;
             
             const totalVerticalSpace = window.innerHeight;
             const nonCanvasHeight = controlsHeight + titleHeight + 40;
@@ -968,13 +996,27 @@
             }
         });
 
-        window.addEventListener('beforeunload', (e) => {
-            if (!isGameSaved && gameState !== 'gameover') {
-                e.preventDefault();
-                e.returnValue = '';
-            }
+        cancelExitBtn.addEventListener('click', () => {
+            exitModal.classList.add('hidden');
         });
 
+        exitAnywayBtn.addEventListener('click', () => {
+            isExiting = true;
+            window.location.href = window.location.href.split('?')[0];
+        });
+
+        saveExitBtn.addEventListener('click', () => {
+            saveGame();
+            isExiting = true;
+            window.location.href = window.location.href.split('?')[0];
+        });
+
+        window.addEventListener('beforeunload', (e) => {
+            if (!isGameSaved && !isExiting && gameState !== 'gameover') {
+                saveGame();
+            }
+        });
+        
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
