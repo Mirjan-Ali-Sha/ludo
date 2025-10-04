@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ludo-universe-v1';
+const CACHE_NAME = 'ludo-universe-v6'; // Updated cache version for a clean install
 const urlsToCache = [
   './', // This is the alias for index.html
   'manifest.json',
@@ -6,7 +6,6 @@ const urlsToCache = [
   'https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js'
 ];
 
-// Install event: Open a cache and add the assets to it
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -18,7 +17,6 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// Activate event: Clean up old caches
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
@@ -36,16 +34,13 @@ self.addEventListener('activate', event => {
   return self.clients.claim();
 });
 
-// Fetch event: Serve content from cache first (Cache-First strategy)
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        // If the request is in the cache, return it
         if (response) {
           return response;
         }
-        // If the request is not in the cache, fetch it from the network
         return fetch(event.request);
       }
     )
