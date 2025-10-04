@@ -355,20 +355,10 @@
         </div>
     </div>
 
-    <div id="game-over-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h2 id="winner-message">Player 1 Wins!</h2>
-            <div class="modal-buttons">
-                <button id="continue-game-btn" class="game-buttons" style="background: #27ae60;">Continue</button>
-                <button id="new-game-btn" class="game-buttons" style="background: #3498db;">New Game</button>
-            </div>
-        </div>
-    </div>
-
     <div id="exit-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <h2>Unsaved Progress</h2>
-            <p>Do you want to save your progress?</p>
+            <p>Do you want to save your progress before leaving?</p>
             <div class="modal-buttons">
                 <button id="save-exit-btn" class="game-buttons" style="background: #27ae60;">Yes</button>
                 <button id="exit-anyway-btn" class="game-buttons" style="background: #e74c3c;">No</button>
@@ -390,10 +380,6 @@
         const saveBtn = document.getElementById('save-btn');
         const resetBtn = document.getElementById('reset-btn');
         const muteBtn = document.getElementById('mute-btn');
-        const gameOverModal = document.getElementById('game-over-modal');
-        const winnerMessageEl = document.getElementById('winner-message');
-        const continueGameBtn = document.getElementById('continue-game-btn');
-        const newGameBtn = document.getElementById('new-game-btn');
         const exitModal = document.getElementById('exit-modal');
         const saveExitBtn = document.getElementById('save-exit-btn');
         const exitAnywayBtn = document.getElementById('exit-anyway-btn');
@@ -665,30 +651,26 @@
 
             if (winner !== -1) {
                 playerRanks.push(winner);
-                winnerMessageEl.textContent = `Player ${winner + 1} has finished!`;
+                gameMessageEl.textContent = `Player ${winner + 1} finished!`;
                 playSound('win');
                 
                 if (playerRanks.length >= 3) {
-                    gameMessageEl.textContent = "Game Over!";
                     gameState = 'gameover';
-                    continueGameBtn.classList.add('hidden');
-                    newGameBtn.textContent = "Play Again";
-                } else {
-                    continueGameBtn.classList.remove('hidden');
-                    newGameBtn.textContent = "New Game";
+                    gameMessageEl.textContent = 'Game Over! Press Reset.';
+                    diceContainer.style.cursor = 'not-allowed';
                 }
-                gameOverModal.classList.remove('hidden');
-                return;
             }
             
-            if (diceRoll === 6 || captureMadeThisTurn || tokenFinishedThisTurn) {
-                gameState = 'roll';
-                diceContainer.style.cursor = 'pointer';
-                if (tokenFinishedThisTurn) gameMessageEl.textContent = 'Token is home! Roll again.';
-                else if (captureMadeThisTurn) gameMessageEl.textContent = 'You captured a token! Roll again.';
-                else gameMessageEl.textContent = 'You rolled a 6! Roll again.';
-            } else {
-                switchPlayer();
+            if (gameState !== 'gameover') {
+                 if (diceRoll === 6 || captureMadeThisTurn || tokenFinishedThisTurn) {
+                    gameState = 'roll';
+                    diceContainer.style.cursor = 'pointer';
+                    if (tokenFinishedThisTurn) gameMessageEl.textContent = 'Token is home! Roll again.';
+                    else if (captureMadeThisTurn) gameMessageEl.textContent = 'You captured a token! Roll again.';
+                    else gameMessageEl.textContent = 'You rolled a 6! Roll again.';
+                 } else {
+                    switchPlayer();
+                 }
             }
             drawEverything();
         }
