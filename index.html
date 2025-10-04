@@ -365,18 +365,6 @@
         </div>
     </div>
     
-    <div id="exit-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h2>Unsaved Progress</h2>
-            <p>Do you want to save before you exit?</p>
-            <div class="modal-buttons">
-                <button id="save-exit-btn" class="game-buttons" style="background: #27ae60;">Save & Exit</button>
-                <button id="exit-anyway-btn" class="game-buttons" style="background: #e74c3c;">Exit Anyway</button>
-                <button id="cancel-exit-btn" class="game-buttons" style="background: #95a5a6;">Cancel</button>
-            </div>
-        </div>
-    </div>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -395,16 +383,11 @@
         const winnerMessageEl = document.getElementById('winner-message');
         const continueGameBtn = document.getElementById('continue-game-btn');
         const newGameBtn = document.getElementById('new-game-btn');
-        const exitModal = document.getElementById('exit-modal');
-        const saveExitBtn = document.getElementById('save-exit-btn');
-        const exitAnywayBtn = document.getElementById('exit-anyway-btn');
-        const cancelExitBtn = document.getElementById('cancel-exit-btn');
         
         let boardSize;
         let SQUARE_SIZE;
         let TOKEN_RADIUS;
         let isMuted = false;
-        let isExiting = false;
 
         const sounds = {
             roll: new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } }).toDestination(),
@@ -946,11 +929,8 @@
         }
         
         function handleResize() {
-            const controls = document.querySelector('.controls');
-            const title = document.querySelector('.game-wrapper > h1');
-            
-            const controlsHeight = controls ? controls.offsetHeight : 0;
-            const titleHeight = title ? title.offsetHeight : 0;
+            const controlsHeight = document.querySelector('.controls').offsetHeight;
+            const titleHeight = document.querySelector('.game-wrapper > h1').offsetHeight;
             
             const totalVerticalSpace = window.innerHeight;
             const nonCanvasHeight = controlsHeight + titleHeight + 40;
@@ -996,24 +976,11 @@
             }
         });
 
-        cancelExitBtn.addEventListener('click', () => {
-            exitModal.classList.add('hidden');
-        });
-
-        exitAnywayBtn.addEventListener('click', () => {
-            isExiting = true;
-            window.location.href = window.location.href.split('?')[0];
-        });
-
-        saveExitBtn.addEventListener('click', () => {
-            saveGame();
-            isExiting = true;
-            window.location.href = window.location.href.split('?')[0];
-        });
-
         window.addEventListener('beforeunload', (e) => {
-            if (!isGameSaved && !isExiting && gameState !== 'gameover') {
-                saveGame();
+            if (!isGameSaved && gameState !== 'gameover') {
+                e.preventDefault(); 
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+                return e.returnValue;
             }
         });
         
