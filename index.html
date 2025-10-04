@@ -286,6 +286,7 @@
             border-radius: 15px;
             text-align: center;
             box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+            margin: 15px;
         }
 
         .modal-content h2 {
@@ -298,6 +299,7 @@
 
         .modal-buttons {
             display: flex;
+            flex-wrap: wrap; /* Allow buttons to wrap on small screens */
             justify-content: center;
             gap: 15px;
             margin-top: 20px;
@@ -364,6 +366,18 @@
             </div>
         </div>
     </div>
+
+    <div id="exit-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Unsaved Progress</h2>
+            <p>Do you want to save before exiting?</p>
+            <div class="modal-buttons">
+                <button id="save-exit-btn" class="game-buttons" style="background: #27ae60;">Save & Exit</button>
+                <button id="exit-anyway-btn" class="game-buttons" style="background: #e74c3c;">Exit Anyway</button>
+                <button id="cancel-exit-btn" class="game-buttons" style="background: #95a5a6;">Cancel</button>
+            </div>
+        </div>
+    </div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <script>
@@ -383,11 +397,16 @@
         const winnerMessageEl = document.getElementById('winner-message');
         const continueGameBtn = document.getElementById('continue-game-btn');
         const newGameBtn = document.getElementById('new-game-btn');
+        const exitModal = document.getElementById('exit-modal');
+        const saveExitBtn = document.getElementById('save-exit-btn');
+        const exitAnywayBtn = document.getElementById('exit-anyway-btn');
+        const cancelExitBtn = document.getElementById('cancel-exit-btn');
         
         let boardSize;
         let SQUARE_SIZE;
         let TOKEN_RADIUS;
         let isMuted = false;
+        let isExiting = false;
 
         const sounds = {
             roll: new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } }).toDestination(),
@@ -413,18 +432,12 @@
             }
         }
         
-        const savedSoundSetting = JSON.parse(localStorage.getItem('ludoSoundSetting'));
-        if (savedSoundSetting) {
-            isMuted = savedSoundSetting.muted;
-        }
-        muteBtn.textContent = isMuted ? '🔇' : '🔊';
-
-        muteBtn.addEventListener('click', () => {
-            isMuted = !isMuted;
+        function toggleMute(shouldBeMuted) {
+            isMuted = shouldBeMuted;
             muteBtn.textContent = isMuted ? '🔇' : '🔊';
             localStorage.setItem('ludoSoundSetting', JSON.stringify({ muted: isMuted }));
-        });
-
+        }
+        
         document.body.addEventListener('click', async () => {
             if (Tone.context.state !== 'running') {
                 await Tone.start();
@@ -976,11 +989,29 @@
             }
         });
 
-        window.addEventListener('beforeunload', (e) => {
-            if (!isGameSaved && gameState !== 'gameover') {
-                e.preventDefault(); 
-                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-                return e.returnValue;
+        cancelExitBtn.addEventListener('click', () => {
+            exitModal.classList.add('hidden');
+        });
+
+        exitAnywayBtn.addEventListener('click', () => {
+            isExiting = true;
+            history.back();
+        });
+
+        saveExitBtn.addEventListener('click', () => {
+            saveGame();
+            isExiting = true;
+            history.back();
+        });
+
+        window.addEventListener('popstate', (e) => {
+            if (isExiting || isGameSaved || gameState === 'gameover') {
+                return;
+            }
+            
+            if (location.hash !== '#game') {
+                exitModal.classList.remove('hidden');
+                history.pushState({ page: 1 }, "Ludo", "#game");
             }
         });
         
@@ -999,6 +1030,12 @@
                 document.body.style.overflow = 'auto';
             });
             gameWrapper.classList.remove('hidden');
+            
+            history.pushState({ page: 1 }, "Ludo", "#game");
+            
+            const savedSoundSetting = JSON.parse(localStorage.getItem('ludoSoundSetting'));
+            toggleMute(savedSoundSetting ? savedSoundSetting.muted : false);
+
             if (!loadGame()) {
                 initializeGame();
             }
