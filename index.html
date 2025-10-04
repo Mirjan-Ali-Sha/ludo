@@ -254,7 +254,7 @@
              transform: translateY(4px);
              box-shadow: 0 0 #a93226;
         }
-        
+
         #mute-btn {
             background: transparent;
             border: 2px solid #7f8c8d;
@@ -335,7 +335,6 @@
         let TOKEN_RADIUS;
         let isMuted = false;
 
-        // --- SOUND ENGINE ---
         const sounds = {
             roll: new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } }).toDestination(),
             move: new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.01, release: 0.1 } }).toDestination(),
@@ -347,18 +346,10 @@
         function playSound(sound) {
             if (isMuted || Tone.context.state !== 'running') return;
             switch(sound) {
-                case 'roll':
-                    sounds.roll.triggerAttackRelease("8n");
-                    break;
-                case 'move':
-                    sounds.move.triggerAttackRelease("C5", "16n");
-                    break;
-                case 'capture':
-                    sounds.capture.triggerAttackRelease("G3", "8n");
-                    break;
-                case 'finish':
-                    sounds.finish.triggerAttackRelease("G5", "16n");
-                    break;
+                case 'roll': sounds.roll.triggerAttackRelease("8n"); break;
+                case 'move': sounds.move.triggerAttackRelease("C5", "16n"); break;
+                case 'capture': sounds.capture.triggerAttackRelease("G3", "8n"); break;
+                case 'finish': sounds.finish.triggerAttackRelease("G5", "16n"); break;
                 case 'win':
                     const now = Tone.now();
                     sounds.win.triggerAttackRelease(["C4", "E4", "G4"], "8n", now);
@@ -373,7 +364,6 @@
             muteBtn.textContent = isMuted ? '🔇' : '🔊';
         });
 
-        // Ensure audio context is started by user interaction
         document.body.addEventListener('click', async () => {
             if (Tone.context.state !== 'running') {
                 await Tone.start();
@@ -383,10 +373,10 @@
 
 
         const PLAYER_COLORS = {
-            p1: { light: '#ff7979', dark: '#ff4757' },
-            p2: { light: '#55ef90', dark: '#2ed573' },
-            p3: { light: '#ffc048', dark: '#ffa502' },
-            p4: { light: '#74b9ff', dark: '#1e90ff' }
+            p1: { light: '#ff7979', dark: '#ff4757', faint: '#ffebee' },
+            p2: { light: '#55ef90', dark: '#2ed573', faint: '#e8f5e9' },
+            p3: { light: '#ffc048', dark: '#ffa502', faint: '#fff8e1' },
+            p4: { light: '#74b9ff', dark: '#1e90ff', faint: '#e3f2fd' }
         };
         const PLAYER_CSS_COLORS = ['var(--player1-color)', 'var(--player2-color)', 'var(--player3-color)', 'var(--player4-color)'];
 
@@ -663,6 +653,22 @@
 
             for(let i=0; i < path.length; i++) {
                 const pos = path[i];
+                const px = pos.x * SQUARE_SIZE;
+                const py = pos.y * SQUARE_SIZE;
+                
+                let quadrantColor = '#FFFFFF';
+                if(pos.y <=5 && pos.x >=6 && pos.x <= 8) quadrantColor = playerColorObjects[0].faint;
+                else if (pos.x >=9 && pos.y >=6 && pos.y <= 8) quadrantColor = playerColorObjects[1].faint;
+                else if (pos.y >=9 && pos.x >=6 && pos.x <= 8) quadrantColor = playerColorObjects[2].faint;
+                else if (pos.x <=5 && pos.y >=6 && pos.y <= 8) quadrantColor = playerColorObjects[3].faint;
+
+                const grad = ctx.createLinearGradient(px, py, px + SQUARE_SIZE, py + SQUARE_SIZE);
+                grad.addColorStop(0, 'white');
+                grad.addColorStop(1, quadrantColor);
+                ctx.fillStyle = grad;
+                ctx.fillRect(px, py, SQUARE_SIZE, SQUARE_SIZE);
+
+
                 drawGoldenStroke(pos.x * SQUARE_SIZE, pos.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
                 if(safeZones.includes(i)) {
                     const starX = (pos.x + 0.5) * SQUARE_SIZE;
@@ -749,28 +755,34 @@
                 }
                 
                 if (x !== undefined) {
+                    
+                    let drawY = y;
+                    if (movableTokens.includes(token)) {
+                        drawY = y - TOKEN_RADIUS * 0.3; // LIFT EFFECT
+                    }
+                    
                     if (movableTokens.includes(token)) {
                         const pinRadius = TOKEN_RADIUS * 1.2;
-                        const pinTipY = y + TOKEN_RADIUS * 1.5;
+                        const pinTipY = drawY + TOKEN_RADIUS * 1.9; // LONGER POINTER
                         ctx.fillStyle = playerColorSet.dark;
                         ctx.globalAlpha = 0.6;
                         ctx.beginPath();
-                        ctx.arc(x, y, pinRadius, 0, 2 * Math.PI);
+                        ctx.arc(x, drawY, pinRadius, 0, 2 * Math.PI);
                         ctx.fill();
                         ctx.beginPath();
-                        ctx.moveTo(x - pinRadius, y);
-                        ctx.lineTo(x + pinRadius, y);
+                        ctx.moveTo(x - pinRadius, drawY);
+                        ctx.lineTo(x + pinRadius, drawY);
                         ctx.lineTo(x, pinTipY);
                         ctx.closePath();
                         ctx.fill();
                         ctx.globalAlpha = 1.0;
                     }
-                    const grad = ctx.createRadialGradient(x - TOKEN_RADIUS * 0.2, y - TOKEN_RADIUS * 0.2, TOKEN_RADIUS * 0.1, x, y, TOKEN_RADIUS);
+                    const grad = ctx.createRadialGradient(x - TOKEN_RADIUS * 0.2, drawY - TOKEN_RADIUS * 0.2, TOKEN_RADIUS * 0.1, x, drawY, TOKEN_RADIUS);
                     grad.addColorStop(0, playerColorSet.light);
                     grad.addColorStop(1, playerColorSet.dark);
                     ctx.fillStyle = grad;
                     ctx.beginPath();
-                    ctx.arc(x, y, TOKEN_RADIUS, 0, 2 * Math.PI);
+                    ctx.arc(x, drawY, TOKEN_RADIUS, 0, 2 * Math.PI);
                     ctx.fill();
                 }
             });
@@ -853,7 +865,7 @@
             canvas.height = boardSize;
             SQUARE_SIZE = boardSize / 15;
             TOKEN_RADIUS = SQUARE_SIZE * 0.35;
-            if(gameState !== 'roll' && gameState !== 'move') return; // Don't redraw during animation
+            if(gameState !== 'roll' && gameState !== 'move') return;
             drawEverything();
         }
 
