@@ -223,6 +223,7 @@
             display: flex;
             gap: 10px;
             margin-top: 10px;
+            align-items: center;
         }
 
         .game-buttons button {
@@ -252,6 +253,18 @@
         #reset-btn:active {
              transform: translateY(4px);
              box-shadow: 0 0 #a93226;
+        }
+        
+        #mute-btn {
+            background: transparent;
+            border: 2px solid #7f8c8d;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
         }
 
         @media (min-width: 800px) and (min-height: 600px) {
@@ -296,11 +309,13 @@
                 <div class="game-buttons">
                     <button id="save-btn">Save Game</button>
                     <button id="reset-btn">Reset Game</button>
+                    <button id="mute-btn">🔊</button>
                 </div>
             </div>
         </div>
     </div>
-
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         const splashScreen = document.getElementById('splash-screen');
@@ -313,10 +328,59 @@
         const gameMessageEl = document.getElementById('game-message');
         const saveBtn = document.getElementById('save-btn');
         const resetBtn = document.getElementById('reset-btn');
+        const muteBtn = document.getElementById('mute-btn');
         
         let boardSize;
         let SQUARE_SIZE;
         let TOKEN_RADIUS;
+        let isMuted = false;
+
+        // --- SOUND ENGINE ---
+        const sounds = {
+            roll: new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } }).toDestination(),
+            move: new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.01, release: 0.1 } }).toDestination(),
+            capture: new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.1 } }).toDestination(),
+            finish: new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.05, release: 0.1 } }).toDestination(),
+            win: new Tone.PolySynth(Tone.Synth).toDestination()
+        };
+
+        function playSound(sound) {
+            if (isMuted || Tone.context.state !== 'running') return;
+            switch(sound) {
+                case 'roll':
+                    sounds.roll.triggerAttackRelease("8n");
+                    break;
+                case 'move':
+                    sounds.move.triggerAttackRelease("C5", "16n");
+                    break;
+                case 'capture':
+                    sounds.capture.triggerAttackRelease("G3", "8n");
+                    break;
+                case 'finish':
+                    sounds.finish.triggerAttackRelease("G5", "16n");
+                    break;
+                case 'win':
+                    const now = Tone.now();
+                    sounds.win.triggerAttackRelease(["C4", "E4", "G4"], "8n", now);
+                    sounds.win.triggerAttackRelease(["G4", "B4", "D5"], "8n", now + 0.2);
+                    sounds.win.triggerAttackRelease(["C5", "E5", "G5"], "4n", now + 0.4);
+                    break;
+            }
+        }
+        
+        muteBtn.addEventListener('click', () => {
+            isMuted = !isMuted;
+            muteBtn.textContent = isMuted ? '🔇' : '🔊';
+        });
+
+        // Ensure audio context is started by user interaction
+        document.body.addEventListener('click', async () => {
+            if (Tone.context.state !== 'running') {
+                await Tone.start();
+                console.log('Audio context started');
+            }
+        }, { once: true });
+
 
         const PLAYER_COLORS = {
             p1: { light: '#ff7979', dark: '#ff4757' },
@@ -444,6 +508,7 @@
             gameState = 'rolling'; 
             diceContainer.style.cursor = 'not-allowed';
             diceEl.className = 'dice rolling'; 
+            playSound('roll');
             setTimeout(() => {
                 if (diceBag.length === 0) fillAndShuffleDiceBag();
                 diceRoll = diceBag.pop();
@@ -493,6 +558,7 @@
                 token.status = 'active';
                 token.position = 0;
                 drawEverything();
+                playSound('move');
                 finalizeMove(token);
             } else {
                 animateTokenMove(token, diceRoll);
@@ -505,6 +571,7 @@
                 return;
             }
             token.position++;
+            playSound('move');
             drawEverything();
             setTimeout(() => animateTokenMove(token, stepsLeft - 1), 350);
         }
@@ -513,12 +580,14 @@
             if (token.position === 56) {
                 token.status = 'finished';
                 tokenFinishedThisTurn = true;
+                playSound('finish');
             }
             checkForCapture(token);
             const winner = checkForWinner();
             if (winner !== -1) {
                 gameMessageEl.textContent = `Player ${winner + 1} Wins!`;
                 gameState = 'gameover';
+                playSound('win');
             } else {
                  if (diceRoll === 6 || captureMadeThisTurn || tokenFinishedThisTurn) {
                     gameState = 'roll';
@@ -543,6 +612,7 @@
                         token.status = 'home';
                         token.position = -1;
                         captureMadeThisTurn = true;
+                        playSound('capture');
                     }
                 }
             });
@@ -762,11 +832,8 @@
         }
         
         function handleResize() {
-            const controls = document.querySelector('.controls');
-            const title = document.querySelector('.game-wrapper > h1');
-            
-            const controlsHeight = controls ? controls.offsetHeight : 0;
-            const titleHeight = title ? title.offsetHeight : 0;
+            const controlsHeight = document.querySelector('.controls').offsetHeight;
+            const titleHeight = document.querySelector('.game-wrapper > h1').offsetHeight;
             
             const totalVerticalSpace = window.innerHeight;
             const nonCanvasHeight = controlsHeight + titleHeight + 40;
@@ -786,6 +853,7 @@
             canvas.height = boardSize;
             SQUARE_SIZE = boardSize / 15;
             TOKEN_RADIUS = SQUARE_SIZE * 0.35;
+            if(gameState !== 'roll' && gameState !== 'move') return; // Don't redraw during animation
             drawEverything();
         }
 
