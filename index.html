@@ -267,6 +267,43 @@
             font-size: 1.2em;
         }
 
+        /* MODAL STYLES */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        .modal-content {
+            background: #34495e;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .modal-buttons button {
+            padding: 12px 25px;
+        }
+
+
         @media (min-width: 800px) and (min-height: 600px) {
             .main-content {
                 flex-direction: row;
@@ -314,6 +351,17 @@
             </div>
         </div>
     </div>
+
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 id="winner-message">Player 1 Wins!</h2>
+            <div class="modal-buttons">
+                <button id="continue-game-btn" class="game-buttons" style="background: #27ae60;">Continue</button>
+                <button id="new-game-btn" class="game-buttons" style="background: #3498db;">New Game</button>
+            </div>
+        </div>
+    </div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <script>
@@ -329,6 +377,10 @@
         const saveBtn = document.getElementById('save-btn');
         const resetBtn = document.getElementById('reset-btn');
         const muteBtn = document.getElementById('mute-btn');
+        const gameOverModal = document.getElementById('game-over-modal');
+        const winnerMessageEl = document.getElementById('winner-message');
+        const continueGameBtn = document.getElementById('continue-game-btn');
+        const newGameBtn = document.getElementById('new-game-btn');
         
         let boardSize;
         let SQUARE_SIZE;
@@ -420,6 +472,8 @@
         let movableTokens = [];
         let captureMadeThisTurn = false;
         let tokenFinishedThisTurn = false;
+        let isGameSaved = true;
+        let playerRanks = [];
 
         function fillAndShuffleDiceBag() {
             diceBag = [];
@@ -445,6 +499,8 @@
             fillAndShuffleDiceBag();
             currentPlayerIndex = 0;
             gameState = 'roll';
+            isGameSaved = true;
+            playerRanks = [];
             updateTurnIndicator();
             diceEl.className = 'dice';
             diceContainer.style.cursor = 'pointer';
@@ -461,8 +517,10 @@
             const gameStateToSave = {
                 tokens: tokens,
                 currentPlayerIndex: currentPlayerIndex,
+                playerRanks: playerRanks
             };
             localStorage.setItem('ludoGameState', JSON.stringify(gameStateToSave));
+            isGameSaved = true;
             gameMessageEl.textContent = "Game Saved!";
             setTimeout(() => {
                 if(gameState === 'roll') gameMessageEl.textContent = 'Roll the dice!';
@@ -475,10 +533,12 @@
             if (savedState) {
                 tokens = savedState.tokens;
                 currentPlayerIndex = savedState.currentPlayerIndex;
+                playerRanks = savedState.playerRanks || [];
                 
                 fillAndShuffleDiceBag();
                 gameState = 'roll';
                 diceRoll = 0;
+                isGameSaved = true;
                 
                 updateTurnIndicator();
                 diceEl.className = 'dice';
@@ -509,7 +569,12 @@
         }
         
         function switchPlayer() {
-            currentPlayerIndex = (currentPlayerIndex + 1) % 4;
+            let nextPlayer = (currentPlayerIndex + 1) % 4;
+            while(playerRanks.includes(nextPlayer)) {
+                nextPlayer = (nextPlayer + 1) % 4;
+            }
+            currentPlayerIndex = nextPlayer;
+
             gameState = 'roll';
             diceContainer.style.cursor = 'pointer';
             updateTurnIndicator();
@@ -541,6 +606,7 @@
 
         function moveToken(token) {
             if (gameState !== 'move' && gameState !== 'rolling') return;
+            isGameSaved = false;
             gameState = 'animating';
             movableTokens = [];
             gameMessageEl.textContent = 'Moving...';
@@ -574,10 +640,21 @@
             }
             checkForCapture(token);
             const winner = checkForWinner();
-            if (winner !== -1) {
-                gameMessageEl.textContent = `Player ${winner + 1} Wins!`;
-                gameState = 'gameover';
+            if (winner !== -1 && !playerRanks.includes(winner)) {
+                playerRanks.push(winner);
+                winnerMessageEl.textContent = `Player ${winner + 1} finished!`;
                 playSound('win');
+
+                if (playerRanks.length >= 3) {
+                    gameMessageEl.textContent = "Game Over!";
+                    gameState = 'gameover';
+                    continueGameBtn.classList.add('hidden');
+                    newGameBtn.textContent = "Play Again";
+                } else {
+                    continueGameBtn.classList.remove('hidden');
+                    newGameBtn.textContent = "New Game";
+                }
+                gameOverModal.classList.remove('hidden');
             } else {
                  if (diceRoll === 6 || captureMadeThisTurn || tokenFinishedThisTurn) {
                     gameState = 'roll';
@@ -800,7 +877,7 @@
         
         function checkForWinner() {
             for(let i=0; i<4; i++) {
-                if(tokens.filter(t => t.player === i).every(t => t.status === 'finished')) return i;
+                if(!playerRanks.includes(i) && tokens.filter(t => t.player === i).every(t => t.status === 'finished')) return i;
             }
             return -1;
         }
@@ -874,6 +951,29 @@
         resetBtn.addEventListener('click', resetGame);
         canvas.addEventListener('click', handleCanvasClick);
         window.addEventListener('resize', handleResize);
+        
+        newGameBtn.addEventListener('click', () => {
+            gameOverModal.classList.add('hidden');
+            resetGame();
+        });
+
+        continueGameBtn.addEventListener('click', () => {
+            gameOverModal.classList.add('hidden');
+            if (diceRoll === 6 || captureMadeThisTurn || tokenFinishedThisTurn) {
+                gameState = 'roll';
+                diceContainer.style.cursor = 'pointer';
+                gameMessageEl.textContent = 'You get an extra roll!';
+            } else {
+                switchPlayer();
+            }
+        });
+
+        window.addEventListener('beforeunload', (e) => {
+            if (!isGameSaved && gameState !== 'gameover') {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
