@@ -3,8 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ludo Universe - Live Demo</title>
+    <title>Ludo Universe</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Ludo Universe">
+    <meta name="theme-color" content="#2c3e50">
+
     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Mirjan-Ali-Sha/ludo/main/Ludo_App-icon.png">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/Mirjan-Ali-Sha/ludo/main/Ludo_App-icon.png">
+    
+    <!-- Inline Manifest -->
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIkx1ZG8gVW5pdmVyc2UiLAogICJzaG9ydF9uYW1lIjogIkx1ZG8iLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzJjM2U1MCIsCiAgInRoZW1lX2NvbG9yIjogIiMyYzNlNTciLAogICJkZXNjcmlwdGlvbiI6ICJBIGZ1biBMdWRvIGdhbWUgZm9yIGV2ZXJ5b25lLiIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImh0dHBzOi8vcmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbS9NaXJqYW4tQWxpLVNoYS9sdWRvL21haWW4vTHVkb19BcHAtaWNvbi5wbmciLAogICAgICAic2l6ZXMiOiAiMTkyeDE5MiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIKICAgIH0sCiAgICB7CiAgICAgICJzcmMiOiAiaHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL01pcmphbi1BbGktU2hhL2x1ZG8vbWFpbi9MdWRvX0FwcC1pY29uLnBuZyIsCiAgICAgICJzaXplcyI6ICI1MTJ4NTEyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfQogIF0KfQ==">
+
     <style>
         :root {
             --player1-color: #ff4757;
@@ -14,18 +26,22 @@
             --dice-size: 80px;
         }
 
+        html {
+            height: 100%;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
             background-color: #2c3e50;
             color: white;
             margin: 0;
             padding: 10px;
             box-sizing: border-box;
             overflow: hidden;
+            height: 100%;
         }
 
         /* --- SPLASH SCREEN STYLES --- */
@@ -71,25 +87,35 @@
         /* --- END SPLASH STYLES --- */
 
 
-        .game-container {
+        .game-wrapper {
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            gap: 20px;
+            gap: 15px;
             width: 100%;
+            height: 100%;
         }
         
-        .game-container > h1 {
+        .game-wrapper > h1 {
             margin: 0;
+            flex-shrink: 0;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
         }
 
         #ludo-canvas {
             background-color: #ecf0f1;
             border: 5px solid #bdc3c7;
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            width: 100%;
             max-width: 95vw;
-            max-height: 70vh;
             aspect-ratio: 1 / 1;
         }
 
@@ -99,20 +125,21 @@
             align-items: center;
             gap: 15px;
             min-width: 200px;
+            flex-shrink: 0;
         }
         
         #game-message {
-            font-size: 1em; /* Smaller font size */
+            font-size: 1em;
             font-weight: bold;
             color: #f1c40f;
-            height: 20px; /* Reduced height */
+            height: 20px;
             text-align: center;
         }
 
         #turn-indicator {
-            font-size: 1.3em; /* Smaller font size */
+            font-size: 1.3em;
             font-weight: bold;
-            padding: 8px 16px; /* Adjusted padding */
+            padding: 8px 16px;
             border-radius: 10px;
             background-color: #34495e;
             transition: background-color 0.3s;
@@ -123,7 +150,7 @@
             width: var(--dice-size);
             height: var(--dice-size);
             perspective: 1000px;
-            cursor: pointer; /* Indicates it's clickable */
+            cursor: pointer;
         }
 
         .dice {
@@ -234,27 +261,17 @@
 
 
         /* Media Query for larger screens */
-        @media (min-width: 800px) {
-            .game-container {
-                display: grid;
-                grid-template-columns: auto 1fr;
-                grid-template-rows: auto 1fr;
-                grid-template-areas:
-                    "title title"
-                    "canvas controls";
-                align-items: center;
+        @media (min-width: 800px) and (min-height: 600px) {
+            .main-content {
+                flex-direction: row;
                 gap: 50px;
+                align-items: center;
             }
-            .game-container > h1 {
-                grid-area: title;
-                text-align: center;
-            }
+
             #ludo-canvas {
-                grid-area: canvas;
+                width: auto;
+                max-width: none;
                 max-height: 90vh;
-            }
-            .controls {
-                grid-area: controls;
             }
         }
     </style>
@@ -267,25 +284,27 @@
         <p class="author">By Mirjan Ali Sha</p>
     </div>
 
-    <div class="game-container hidden">
+    <div class="game-wrapper hidden">
         <h1>Ludo Universe</h1>
-        <canvas id="ludo-canvas"></canvas>
-        <div class="controls">
-            <div id="game-message">Roll the dice to start!</div>
-            <div id="turn-indicator">Player 1's Turn</div>
-            <div class="dice-container" id="dice-container">
-                <div class="dice" id="dice">
-                    <div class="face front"><div class="dot"></div></div>
-                    <div class="face back"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-                    <div class="face top"><div class="dot"></div><div class="dot"></div></div>
-                    <div class="face bottom"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-                    <div class="face right"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-                    <div class="face left"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="main-content">
+            <canvas id="ludo-canvas"></canvas>
+            <div class="controls">
+                <div id="game-message">Roll the dice to start!</div>
+                <div id="turn-indicator">Player 1's Turn</div>
+                <div class="dice-container" id="dice-container">
+                    <div class="dice" id="dice">
+                        <div class="face front"><div class="dot"></div></div>
+                        <div class="face back"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+                        <div class="face top"><div class="dot"></div><div class="dot"></div></div>
+                        <div class="face bottom"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+                        <div class="face right"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+                        <div class="face left"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+                    </div>
                 </div>
-            </div>
-            <div class="game-buttons">
-                <button id="save-btn">Save Game</button>
-                <button id="reset-btn">Reset Game</button>
+                <div class="game-buttons">
+                    <button id="save-btn">Save Game</button>
+                    <button id="reset-btn">Reset Game</button>
+                </div>
             </div>
         </div>
     </div>
@@ -293,7 +312,7 @@
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         const splashScreen = document.getElementById('splash-screen');
-        const gameContainer = document.querySelector('.game-container');
+        const gameWrapper = document.querySelector('.game-wrapper');
         const canvas = document.getElementById('ludo-canvas');
         const ctx = canvas.getContext('2d');
         const diceContainer = document.getElementById('dice-container');
@@ -424,7 +443,7 @@
                      diceContainer.style.cursor = 'pointer';
                 } else if(gameState === 'move') {
                     gameMessageEl.textContent = 'Game Loaded. Make your move.';
-                    checkForMovableTokens(); // Recalculate to show highlights
+                    checkForMovableTokens();
                 }
                 
                 handleResize();
@@ -765,21 +784,23 @@
         }
         
         function handleResize() {
-            const controls = document.querySelector('.controls');
-            const title = document.querySelector('.game-container > h1');
+            const controlsHeight = document.querySelector('.controls').offsetHeight;
+            const titleHeight = document.querySelector('.game-wrapper > h1').offsetHeight;
             
-            const controlsHeight = controls ? controls.offsetHeight : 0;
-            const titleHeight = title ? title.offsetHeight : 0;
+            const totalVerticalSpace = window.innerHeight;
+            const nonCanvasHeight = controlsHeight + titleHeight + 40; // 40 for gaps
             
-            const availableHeight = window.innerHeight - (controlsHeight + titleHeight + 60); // Extra padding
-            const availableWidth = window.innerWidth - 40;
+            const availableHeight = totalVerticalSpace - nonCanvasHeight;
+            const availableWidth = window.innerWidth * 0.95;
             
-            if (window.innerWidth < 800) { // Mobile view
-                 boardSize = Math.min(availableWidth, availableHeight);
-            } else { // Desktop view
-                 boardSize = Math.min(window.innerHeight * 0.9, 600);
+            if (window.matchMedia("(min-width: 800px) and (min-height: 600px)").matches) { // Desktop View
+                boardSize = Math.min(window.innerHeight * 0.9, 600)
+            } else { // Mobile view
+                 boardSize = Math.floor(Math.min(availableWidth, availableHeight));
             }
             
+            canvas.style.width = `${boardSize}px`;
+            canvas.style.height = `${boardSize}px`;
             canvas.width = boardSize;
             canvas.height = boardSize;
             SQUARE_SIZE = boardSize / 15;
@@ -793,17 +814,44 @@
         canvas.addEventListener('click', handleCanvasClick);
         window.addEventListener('resize', handleResize);
 
+        // --- PWA Service Worker Registration ---
+        if ('serviceWorker' in navigator) {
+            const swJS = `
+                const CACHE_NAME = 'ludo-universe-v1';
+                const urlsToCache = [
+                    './',
+                    'https://raw.githubusercontent.com/Mirjan-Ali-Sha/ludo/main/Ludo_App-icon.png'
+                ];
+                self.addEventListener('install', event => {
+                    event.waitUntil(
+                        caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
+                    );
+                });
+                self.addEventListener('fetch', event => {
+                    event.respondWith(
+                        caches.match(event.request).then(response => response || fetch(event.request))
+                    );
+                });
+            `;
+            const swBlob = new Blob([swJS], {type: 'application/javascript'});
+            const swUrl = URL.createObjectURL(swBlob);
+
+            navigator.serviceWorker.register(swUrl)
+                .then(reg => console.log('Service worker registered.', reg))
+                .catch(err => console.error('Service worker registration failed: ', err));
+        }
+
         setTimeout(() => {
             splashScreen.style.opacity = '0';
             splashScreen.addEventListener('transitionend', () => {
                 splashScreen.classList.add('hidden');
                 document.body.style.overflow = 'auto';
             });
-            gameContainer.classList.remove('hidden');
+            gameWrapper.classList.remove('hidden');
             if (!loadGame()) {
                 initializeGame();
             }
-        }, 4000);
+        }, 3000);
     });
     </script>
 </body>
