@@ -618,13 +618,25 @@
         }
         
         function checkForCapture(movedToken) {
-            if (movedToken.status !== 'active' || movedToken.position > 50) return;
+            if (movedToken.status !== 'active' || movedToken.position < 0) return;
+            
+            // FIX: Must check BEFORE the modulo calculation
+            if (movedToken.position > 50) return;
+            
             const movedTokenGlobalPos = (movedToken.position + startOffsets[movedToken.player]) % 52;
+            
             if (safeZones.includes(movedTokenGlobalPos)) return;
             
             tokens.forEach(token => {
-                if (token.player !== movedToken.player && token.status === 'active' && token.position <= 50) {
+                if (token.player !== movedToken.player && 
+                    token.status === 'active' && 
+                    token.position >= 0) {
+                    
+                    // FIX: Skip tokens in home path
+                    if (token.position > 50) return;
+                    
                     const opponentGlobalPos = (token.position + startOffsets[token.player]) % 52;
+                    
                     if (movedTokenGlobalPos === opponentGlobalPos) {
                         token.status = 'home';
                         token.position = -1;
@@ -634,6 +646,7 @@
                 }
             });
         }
+
 
         function drawBoard() {
             const homeSize = SQUARE_SIZE * 6;
