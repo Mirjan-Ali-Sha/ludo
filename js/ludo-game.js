@@ -37,6 +37,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const gameoverModal = document.getElementById('gameover-modal');
     const gameoverWinnersList = document.getElementById('gameover-winners');
     const gameoverResetBtn = document.getElementById('gameover-reset-btn');
+    const getBadgeBtn = document.getElementById('get-badge-btn');
+    const playerNameInputs = [
+        document.getElementById('player-name-input-0'),
+        document.getElementById('player-name-input-1'),
+        document.getElementById('player-name-input-2'),
+        document.getElementById('player-name-input-3')
+    ];
+    const DEFAULT_PLAYER_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
+    let playerNames = [...DEFAULT_PLAYER_NAMES];
     let boardSize;
     let SQUARE_SIZE;
     let TOKEN_RADIUS;
@@ -168,8 +177,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const PLAYER_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
     const PLAYER_HEX = ['#ff4757', '#2ed573', '#ffa502', '#1e90ff'];
+
+    function savePlayerNames() {
+        localStorage.setItem('ludoPlayerNames', JSON.stringify(playerNames));
+    }
+
+    function syncAILabels() {
+        playerNames.forEach((name, i) => {
+            const el = document.querySelector(`.ai-name-${i}`);
+            if (el) el.textContent = name || DEFAULT_PLAYER_NAMES[i];
+        });
+    }
 
     function showGameOver() {
         gameMessageEl.textContent = 'Game Over!';
@@ -182,7 +201,8 @@ document.addEventListener('DOMContentLoaded', () => {
             dot.style.background = PLAYER_HEX[pIdx];
             li.appendChild(dot);
             const label = document.createElement('span');
-            label.textContent = `Player ${pIdx + 1} (${PLAYER_NAMES[pIdx]})`;
+            const displayName = playerNames[pIdx] || DEFAULT_PLAYER_NAMES[pIdx];
+            label.textContent = `${displayName} (${DEFAULT_PLAYER_NAMES[pIdx]})`;
             li.appendChild(label);
             gameoverWinnersList.appendChild(li);
         });
@@ -202,6 +222,131 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function syncDiceToActivePlayer() {
         // Obsolete, keeping an empty hook if needed or entirely removing its body to avoid errors
+    }
+
+    function downloadBadge() {
+        if (!gameoverModal) return;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 1080;
+        canvas.height = 1080;
+
+        // 1. Background
+        const grad = ctx.createLinearGradient(0, 0, 0, 1080);
+        grad.addColorStop(0, '#1a2a3a');
+        grad.addColorStop(1, '#0f1a28');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1080, 1080);
+
+        // 2. Decorative Gold Border
+        ctx.strokeStyle = '#d4af37';
+        ctx.lineWidth = 20;
+        ctx.strokeRect(40, 40, 1000, 1000);
+        ctx.lineWidth = 2;
+        ctx.strokeRect(60, 60, 960, 960);
+
+        // 3. App Title & Icon
+        const img = new Image();
+        img.onload = () => {
+            // Draw Icon
+            ctx.drawImage(img, 540 - 100, 120, 200, 200);
+
+            // Draw Title
+            ctx.fillStyle = '#f1c40f';
+            ctx.font = 'bold 72px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('LUDO UNIVERSE', 540, 390);
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '38px sans-serif';
+            ctx.fillText('Official Victory Certificate', 540, 440);
+
+            // 4. Match Summary
+            ctx.fillStyle = '#bdc3c7';
+            ctx.font = '30px sans-serif';
+            const dateStr = new Date().toLocaleDateString('en-US', { 
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+            });
+            ctx.fillText(`Match played on ${dateStr}`, 540, 520);
+
+            // 5. Rankings
+            let y = 640;
+            const participants = [0, 1, 2, 3].filter(p => isPlayerActive(p));
+            const winners = playerRanks;
+            const remaining = participants.filter(p => !winners.includes(p));
+
+            if (singleWinMode) {
+                // Single Player Win Mode
+                const winnerIdx = winners[0];
+                const winnerName = playerNames[winnerIdx] || DEFAULT_PLAYER_NAMES[winnerIdx];
+                
+                // Winner
+                ctx.fillStyle = '#f1c40f';
+                ctx.font = 'bold 58px sans-serif';
+                ctx.fillText(`🥇 1st Prize: ${winnerName}`, 540, y);
+                y += 100;
+
+                // Others
+                ctx.fillStyle = '#ecf0f1';
+                ctx.font = '36px sans-serif';
+                ctx.fillText('Remaining Players:', 540, y);
+                y += 50;
+                
+                ctx.fillStyle = '#bdc3c7';
+                ctx.font = '32px sans-serif';
+                remaining.forEach(p => {
+                    const name = playerNames[p] || DEFAULT_PLAYER_NAMES[p];
+                    ctx.fillText(name, 540, y);
+                    y += 45;
+                });
+            } else if (twoPlayerMode) {
+                // 2-Player Mode
+                const winnerIdx = winners[0];
+                const loserIdx = remaining[0];
+                const winnerName = playerNames[winnerIdx] || DEFAULT_PLAYER_NAMES[winnerIdx];
+                const loserName = playerNames[loserIdx] || DEFAULT_PLAYER_NAMES[loserIdx];
+
+                ctx.fillStyle = '#f1c40f';
+                ctx.font = 'bold 58px sans-serif';
+                ctx.fillText(`🥇 Winner: ${winnerName}`, 540, y);
+                y += 100;
+                
+                ctx.fillStyle = '#ecf0f1';
+                ctx.font = '38px sans-serif';
+                ctx.fillText(`🥈 Runner Up: ${loserName}`, 540, y);
+            } else {
+                // Normal 4-Player Mode
+                const medals = ['🥇 1st', '🥈 2nd', '🥉 3rd'];
+                winners.forEach((pIdx, i) => {
+                    const name = playerNames[pIdx] || DEFAULT_PLAYER_NAMES[pIdx];
+                    ctx.fillStyle = i === 0 ? '#f1c40f' : '#ecf0f1';
+                    ctx.font = i === 0 ? 'bold 54px sans-serif' : '42px sans-serif';
+                    ctx.fillText(`${medals[i]} Place: ${name}`, 540, y);
+                    y += 80;
+                });
+
+                if (remaining.length > 0) {
+                    y += 30;
+                    const lastIdx = remaining[0];
+                    const lastName = playerNames[lastIdx] || DEFAULT_PLAYER_NAMES[lastIdx];
+                    ctx.fillStyle = '#95a5a6';
+                    ctx.font = '38px sans-serif';
+                    ctx.fillText(`🥄 Last Place: ${lastName}`, 540, y);
+                }
+            }
+
+            // 6. Credit
+            ctx.fillStyle = 'rgba(212, 175, 55, 0.9)';
+            ctx.font = 'italic 30px sans-serif';
+            ctx.fillText('Created By Mirjan Ali Sha', 540, 1010);
+
+            // 7. Download
+            const link = document.createElement('a');
+            link.download = 'Ludo_Universe_Badge.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        };
+        img.src = 'Ludo_App-icon.png';
     }
 
     document.body.addEventListener('click', async () => {
@@ -507,7 +652,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (winner !== -1) {
             playerRanks.push(winner);
-            gameMessageEl.textContent = `Player ${winner + 1} finished!`;
+            const winnerName = playerNames[winner] || DEFAULT_PLAYER_NAMES[winner];
+            gameMessageEl.textContent = `${winnerName} finished!`;
             playSound('win');
         }
         
@@ -769,7 +915,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateTurnIndicator() {
-        turnIndicatorEl.textContent = `Player ${currentPlayerIndex + 1}'s Turn`;
+        const name = playerNames[currentPlayerIndex] || DEFAULT_PLAYER_NAMES[currentPlayerIndex];
+        turnIndicatorEl.textContent = `${name}'s Turn`;
         turnIndicatorEl.style.backgroundColor = PLAYER_CSS_COLORS[currentPlayerIndex];
         syncDiceToActivePlayer();
     }
@@ -887,6 +1034,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    playerNameInputs.forEach((input, i) => {
+        if (input) {
+            input.addEventListener('input', (e) => {
+                const val = e.target.value.trim();
+                playerNames[i] = val || DEFAULT_PLAYER_NAMES[i];
+                savePlayerNames();
+                syncAILabels();
+                updateTurnIndicator();
+            });
+        }
+    });
+
     if (blockadeCheckbox) {
         blockadeCheckbox.addEventListener('change', (e) => {
             blockadeRuleEnabled = e.target.checked;
@@ -929,6 +1088,10 @@ document.addEventListener('DOMContentLoaded', () => {
         gameoverResetBtn.addEventListener('click', () => {
             resetGame();
         });
+    }
+
+    if (getBadgeBtn) {
+        getBadgeBtn.addEventListener('click', downloadBadge);
     }
 
     installClose.addEventListener('click', () => hideInstallBanner());
@@ -1044,6 +1207,17 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 singleWinMode = JSON.parse(singleWinPrefRaw);
                 if (singleWinCheckbox) singleWinCheckbox.checked = singleWinMode;
+            } catch (e) { /* ignore */ }
+        }
+
+        const namePrefRaw = localStorage.getItem('ludoPlayerNames');
+        if (namePrefRaw !== null) {
+            try {
+                playerNames = JSON.parse(namePrefRaw);
+                playerNames.forEach((name, i) => {
+                    if (playerNameInputs[i]) playerNameInputs[i].value = (name !== DEFAULT_PLAYER_NAMES[i]) ? name : '';
+                });
+                syncAILabels();
             } catch (e) { /* ignore */ }
         }
 

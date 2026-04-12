@@ -86,27 +86,49 @@
                 </div>
                 
                 <div class="settings-section">
+                    <p class="settings-label">Player Names</p>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div class="player-name-row">
+                            <span class="color-dot" style="background: #ff4757;"></span>
+                            <input type="text" id="player-name-input-0" class="player-name-input" placeholder="Player 1 Name" maxlength="15">
+                        </div>
+                        <div class="player-name-row">
+                            <span class="color-dot" style="background: #2ed573;"></span>
+                            <input type="text" id="player-name-input-1" class="player-name-input" placeholder="Player 2 Name" maxlength="15">
+                        </div>
+                        <div class="player-name-row">
+                            <span class="color-dot" style="background: #ffa502;"></span>
+                            <input type="text" id="player-name-input-2" class="player-name-input" placeholder="Player 3 Name" maxlength="15">
+                        </div>
+                        <div class="player-name-row">
+                            <span class="color-dot" style="background: #1e90ff;"></span>
+                            <input type="text" id="player-name-input-3" class="player-name-input" placeholder="Player 4 Name" maxlength="15">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
                     <p class="settings-label">Computer Players</p>
                     <div style="display: flex; flex-direction: column; gap: 8px;">
                         <label class="mode-bar-label" for="ai-player-0">
                             <input type="checkbox" id="ai-player-0" class="ai-checkbox" data-player="0" aria-label="AI Player 1">
                             <span class="mode-toggle" aria-hidden="true"></span>
-                            <span>Player 1 (Red) AI</span>
+                            <span><span class="ai-name-0">Player 1</span> (Red) AI</span>
                         </label>
                         <label class="mode-bar-label" for="ai-player-1" id="ai-player-1-wrap">
                             <input type="checkbox" id="ai-player-1" class="ai-checkbox" data-player="1" aria-label="AI Player 2">
                             <span class="mode-toggle" aria-hidden="true"></span>
-                            <span>Player 2 (Green) AI</span>
+                            <span><span class="ai-name-1">Player 2</span> (Green) AI</span>
                         </label>
                         <label class="mode-bar-label" for="ai-player-2">
                             <input type="checkbox" id="ai-player-2" class="ai-checkbox" data-player="2" aria-label="AI Player 3">
                             <span class="mode-toggle" aria-hidden="true"></span>
-                            <span>Player 3 (Yellow) AI</span>
+                            <span><span class="ai-name-2">Player 3</span> (Yellow) AI</span>
                         </label>
                         <label class="mode-bar-label" for="ai-player-3" id="ai-player-3-wrap">
                             <input type="checkbox" id="ai-player-3" class="ai-checkbox" data-player="3" aria-label="AI Player 4">
                             <span class="mode-toggle" aria-hidden="true"></span>
-                            <span>Player 4 (Blue) AI</span>
+                            <span><span class="ai-name-3">Player 4</span> (Blue) AI</span>
                         </label>
                     </div>
                     <div style="margin-top: 15px;">
@@ -150,6 +172,7 @@
                 <ol id="gameover-winners" class="gameover-winners"></ol>
             </div>
             <div class="gameover-panel__foot">
+                <button type="button" id="get-badge-btn" class="settings-action settings-action--neutral" style="margin-bottom: 8px;">Get Badge</button>
                 <button type="button" id="gameover-reset-btn" class="settings-action settings-action--danger">New Game</button>
             </div>
         </div>
