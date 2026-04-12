@@ -1,0 +1,670 @@
+/* Ludo Universe - layout, dice, install banner, mode bar */
+:root {
+    --player1-color: #ff4757;
+    --player3-color: #ffa502;
+    --player4-color: #1e90ff;
+    --dice-size: clamp(60px, 20vmin, 100px);
+    /* 3D dice — shared lighting (top-left key) */
+    --dice-gold: #c9a227;
+    --dice-gold-bright: #f5e6a8;
+    --dice-gold-deep: #6b5420;
+    --dice-face-shine: rgba(255, 255, 255, 0.88);
+    --dice-face-mid: #ececee;
+    --dice-face-dim: #c8c8d0;
+    --shell-pad: 3%;
+    --stage-gap: clamp(4px, 1vmin, 8px);
+    --board-frame-gold: rgba(212, 175, 55, 0.55);
+}
+
+html {
+    height: 100%;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    background:
+        radial-gradient(ellipse 120% 80% at 50% -20%, rgba(52, 152, 219, 0.12), transparent 50%),
+        linear-gradient(168deg, #243342 0%, #1c2838 45%, #141c28 100%);
+    color: white;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #2c3e50;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    transition: opacity 1s ease-out;
+}
+#splash-screen img {
+    width: 150px;
+    height: 150px;
+    margin-bottom: 20px;
+    border-radius: 25px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+#splash-screen h1 {
+    font-size: 3em;
+    margin: 0;
+    color: #ecf0f1;
+}
+#splash-screen .tagline {
+    font-size: 1.2em;
+    margin-top: 10px;
+    color: #bdc3c7;
+}
+#splash-screen .author {
+    font-size: 1em;
+    margin-top: 40px;
+    color: #7f8c8d;
+}
+.hidden {
+    display: none !important;
+}
+
+.game-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 2px 4px 10px;
+    box-sizing: border-box;
+    min-height: min(100vh, 100%);
+    gap: 4px;
+}
+
+/* ---- Compact header + HUD ---- */
+.game-header {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.game-header__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+}
+
+.game-title {
+    margin: 0;
+    font-size: clamp(1.15rem, 4vw, 1.45rem);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #ecf0f1;
+    text-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.12),
+        0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.game-title__sub {
+    font-weight: 600;
+    opacity: 0.82;
+    letter-spacing: 0.02em;
+}
+
+.game-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.icon-btn {
+    border: none;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.8rem;
+    border-radius: 10px;
+    transition: transform 0.12s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.icon-btn--save {
+    padding: 8px 12px;
+    color: #0d1f14;
+    background: linear-gradient(165deg, #3dd382 0%, #229954 55%, #1a6b3c 100%);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.35) inset,
+        0 4px 0 #145a32,
+        0 6px 14px rgba(0, 0, 0, 0.35);
+}
+
+.icon-btn--save:active {
+    transform: translateY(2px);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.25) inset,
+        0 2px 0 #145a32,
+        0 3px 8px rgba(0, 0, 0, 0.35);
+}
+
+.icon-btn--gear {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ecf0f1;
+    background: linear-gradient(165deg, #4a6278 0%, #34495e 50%, #243342 100%);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.2) inset,
+        0 4px 0 #1f2d3a,
+        0 6px 14px rgba(0, 0, 0, 0.35);
+}
+
+.icon-btn--gear:active {
+    transform: translateY(2px);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.15) inset,
+        0 2px 0 #1f2d3a,
+        0 3px 8px rgba(0, 0, 0, 0.35);
+}
+
+.icon-btn__glyph {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.game-hud {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px 14px;
+    padding: 6px 10px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(30, 42, 56, 0.92) 0%, rgba(22, 32, 44, 0.95) 100%);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.08) inset,
+        0 8px 24px rgba(0, 0, 0, 0.35),
+        0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+#game-message {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #f1c40f;
+    min-height: 1.2em;
+    text-align: center;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+#turn-indicator {
+    font-size: clamp(0.85rem, 2.8vw, 1.05rem);
+    font-weight: 800;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background-color: #34495e;
+    transition: background-color 0.3s;
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.15) inset,
+        0 3px 10px rgba(0, 0, 0, 0.25);
+}
+
+/* ---- Simple Board Layout ---- */
+.main-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+}
+
+.board-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    flex-shrink: 0;
+}
+
+#ludo-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 1 / 1;
+    background-color: #ecf0f1;
+    border-radius: 8px;
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.15) inset,
+        0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- Settings modal ---- */
+.settings-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 220;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.settings-modal.hidden {
+    display: none !important;
+}
+
+.settings-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: rgba(8, 12, 18, 0.62);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    cursor: pointer;
+}
+
+.settings-panel {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 380px;
+    border-radius: 18px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #2c3e50 0%, #1e2a38 100%);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.12) inset,
+        0 20px 50px rgba(0, 0, 0, 0.55),
+        0 0 0 2px rgba(212, 175, 55, 0.35);
+}
+
+.settings-panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settings-panel__head h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+}
+
+.settings-panel__close {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.settings-panel__body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.settings-action {
+    width: 100%;
+    padding: 12px 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
+}
+
+.settings-action--danger {
+    color: white;
+    background: linear-gradient(165deg, #e74c3c 0%, #c0392b 100%);
+}
+
+.settings-action--neutral {
+    color: #ecf0f1;
+    background: linear-gradient(165deg, #5d6d7e 0%, #34495e 100%);
+}
+
+.settings-section {
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settings-label {
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #bdc3c7;
+}
+
+.mode-bar-label {
+    position: relative;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #ecf0f1;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.dice-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 30px;
+    border-radius: 20px;
+    background: linear-gradient(145deg, rgba(35, 45, 60, 0.8) 0%, rgba(20, 28, 40, 0.95) 100%);
+    box-shadow:
+        0 2px 0 rgba(255, 255, 255, 0.1) inset,
+        0 -4px 12px rgba(0, 0, 0, 0.4) inset,
+        0 0 0 2px rgba(212, 175, 55, 0.4),
+        0 8px 24px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    gap: 18px;
+}
+
+.dice-box:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        0 2px 0 rgba(255, 255, 255, 0.15) inset,
+        0 -4px 12px rgba(0, 0, 0, 0.4) inset,
+        0 0 0 3px rgba(212, 175, 55, 0.6),
+        0 12px 28px rgba(0, 0, 0, 0.65);
+}
+
+.dice-box:active {
+    transform: translateY(2px);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.05) inset,
+        0 -2px 6px rgba(0, 0, 0, 0.5) inset,
+        0 0 0 2px rgba(212, 175, 55, 0.4),
+        0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.dice-box-label {
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: #e8c547;
+    text-transform: uppercase;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    opacity: 0.9;
+}
+
+.dice-container {
+    width: var(--dice-size);
+    height: var(--dice-size);
+    perspective: 1200px;
+    perspective-origin: 50% 40%;
+    cursor: pointer;
+    overflow: visible;
+    filter:
+        drop-shadow(0 18px 14px rgba(0, 0, 0, 0.38))
+        drop-shadow(0 6px 8px rgba(0, 0, 0, 0.22))
+        drop-shadow(0 0 1px rgba(255, 215, 120, 0.35));
+}
+
+.dice {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 1s cubic-bezier(0.34, 1.02, 0.68, 1);
+    transform-origin: 50% 50%;
+    will-change: transform;
+}
+
+.dice.rolling {
+    animation: roll 1.5s ease-out;
+}
+
+.face {
+    position: absolute;
+    width: var(--dice-size);
+    height: var(--dice-size);
+    border: none;
+    border-radius: 12px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    padding: 11px;
+    box-sizing: border-box;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    /* Ivory face + top-left highlight (reads as one light source on every face) */
+    background:
+        radial-gradient(ellipse 95% 80% at 26% 20%, var(--dice-face-shine) 0%, transparent 58%),
+        linear-gradient(
+            152deg,
+            #ffffff 0%,
+            var(--dice-face-mid) 42%,
+            var(--dice-face-dim) 100%
+        );
+    /* Bevel + inset gold frame (avoids seam clipping from neighbor faces) */
+    box-shadow:
+        inset 0 2px 3px rgba(255, 255, 255, 0.75),
+        inset 0 -3px 6px rgba(0, 0, 0, 0.1),
+        inset 3px 0 2px rgba(255, 255, 255, 0.35),
+        inset -3px 0 5px rgba(0, 0, 0, 0.06),
+        inset 0 0 0 2px var(--dice-gold),
+        inset 0 0 0 4px rgba(212, 175, 55, 0.18),
+        inset 0 0 20px rgba(255, 200, 70, 0.08),
+        0 0 18px rgba(255, 190, 60, 0.2);
+}
+
+.dot {
+    width: 26%;
+    height: 26%;
+    border-radius: 50%;
+    align-self: center;
+    justify-self: center;
+    background: radial-gradient(
+        circle at 30% 30%,
+        #5a6b7c 0%,
+        #2c3e50 40%,
+        #1a252f 100%
+    );
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.6),
+        inset 0 -2px 4px rgba(255, 255, 255, 0.3),
+        0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+/* Slight Z inset keeps face planes from z-fighting at edges */
+.front  { transform: rotateY(  0deg) translateZ(calc(var(--dice-size) / 2 - 1.5px)); }
+.back   { transform: rotateY(180deg) translateZ(calc(var(--dice-size) / 2 - 1.5px)); }
+.right  { transform: rotateY( 90deg) translateZ(calc(var(--dice-size) / 2 - 1.5px)); }
+.left   { transform: rotateY(-90deg) translateZ(calc(var(--dice-size) / 2 - 1.5px)); }
+.top    { transform: rotateX( 90deg) translateZ(calc(var(--dice-size) / 2 - 1.5px)); }
+.bottom { transform: rotateX(-90deg) translateZ(calc(var(--dice-size) / 2 - 1.5px)); }
+
+.front { grid-template-areas: ". . ." ". a ." ". . ."; }
+.back { grid-template-areas: "a . b" "c . d" "e . f"; }
+.right { grid-template-areas: "a . ." ". b ." ". . c"; }
+.left { grid-template-areas: "a . b" ". . ." "c . d"; }
+.top { grid-template-areas: "a . ." ". . ." ". . b"; }
+.bottom { grid-template-areas: "a . b" ". c ." "d . e"; }
+
+.dot:nth-child(1) { grid-area: a; }
+.dot:nth-child(2) { grid-area: b; }
+.dot:nth-child(3) { grid-area: c; }
+.dot:nth-child(4) { grid-area: d; }
+.dot:nth-child(5) { grid-area: e; }
+.dot:nth-child(6) { grid-area: f; }
+
+.dice.show-1 { transform: rotateY(0deg); }
+.dice.show-6 { transform: rotateY(180deg); }
+.dice.show-3 { transform: rotateY(-90deg); }
+.dice.show-4 { transform: rotateY(90deg); }
+.dice.show-2 { transform: rotateX(-90deg); }
+.dice.show-5 { transform: rotateX(90deg); }
+
+@keyframes roll {
+    0% { transform: rotateY(0deg) rotateX(0deg); }
+    100% { transform: rotateY(1080deg) rotateX(720deg); }
+}
+
+.mode-hint {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: #bdc3c7;
+    margin: 10px 0 0;
+    line-height: 1.35;
+}
+.mode-toggle {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    background: #7f8c8d;
+    border-radius: 999px;
+    transition: background 0.25s ease;
+    flex-shrink: 0;
+}
+.mode-toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    transition: transform 0.25s ease;
+}
+#two-player-checkbox:checked + .mode-toggle {
+    background: linear-gradient(145deg, #f1c40f, #d4af37);
+}
+#two-player-checkbox:checked + .mode-toggle::after {
+    transform: translateX(22px);
+}
+#two-player-checkbox {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+@media (min-width: 800px) and (min-height: 500px) {
+    .main-content {
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+    }
+    .board-cell, .controls {
+        flex: none;
+    }
+    #ludo-canvas {
+        max-width: none;
+        max-height: 90vh;
+        width: auto;
+        height: auto;
+    }
+}
+
+.install-banner {
+    position: fixed;
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    z-index: 150;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px 16px;
+    border-radius: 24px;
+    background: rgba(20, 29, 43, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 18px 48px rgba(0,0,0,0.35);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    transform: translateY(140%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.35s ease, opacity 0.35s ease;
+}
+.install-banner.show {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+.install-banner-copy {
+    flex: 1;
+    min-width: 0;
+}
+.install-banner-title {
+    margin: 0 0 4px;
+    font-size: 1rem;
+    font-weight: 700;
+}
+.install-banner-text {
+    margin: 0;
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.8);
+}
+.install-banner-action,
+.install-banner-close {
+    border: none;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.install-banner-action {
+    padding: 11px 16px;
+    border-radius: 999px;
+    background: linear-gradient(145deg, #f1c40f, #d4af37);
+    color: #1f2937;
+    font-weight: 700;
+    box-shadow: 0 10px 22px rgba(212, 175, 55, 0.35);
+}
+.install-banner-close {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    color: white;
+    font-size: 1.35rem;
+    line-height: 1;
+}

@@ -1,7 +1,9 @@
-const CACHE_NAME = 'ludo-universe-v7';
+const CACHE_NAME = 'ludo-universe-v12';
 const urlsToCache = [
   './',
   './index.html',
+  './css/ludo.css',
+  './js/ludo-game.js',
   './manifest.json',
   './Ludo_App-icon.png'
 ];

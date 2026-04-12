@@ -1,0 +1,840 @@
+/**
+ * Ludo Universe — board, rules, UI, save/load, two-player mode.
+ * Add optional scripts after this file (e.g. AI) or split further under js/.
+ */
+document.addEventListener('DOMContentLoaded', () => {
+    const splashScreen = document.getElementById('splash-screen');
+    const gameWrapper = document.querySelector('.game-wrapper');
+    const canvas = document.getElementById('ludo-canvas');
+    const ctx = canvas.getContext('2d');
+    const diceBox = document.getElementById('dice-box');
+    const diceEl = document.getElementById('dice');
+    const turnIndicatorEl = document.getElementById('turn-indicator');
+    const gameMessageEl = document.getElementById('game-message');
+    const saveBtn = document.getElementById('save-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const muteBtn = document.getElementById('mute-btn');
+    const installBanner = document.getElementById('install-banner');
+    const installBannerText = document.getElementById('install-banner-text');
+    const installButton = document.getElementById('install-button');
+    const installClose = document.getElementById('install-close');
+    const twoPlayerCheckbox = document.getElementById('two-player-checkbox');
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const settingsClose = document.getElementById('settings-close');
+    const settingsBackdrop = document.getElementById('settings-backdrop');
+    
+    let boardSize;
+    let SQUARE_SIZE;
+    let TOKEN_RADIUS;
+    let isMuted = false;
+    let deferredInstallPrompt = null;
+    let installBannerTimer = null;
+    let installedKnown = false;
+
+    const installMessage = 'Install this game for faster access and a cleaner full-screen board.';
+    const installFallbackMessage = 'Use your browser menu and choose "Install App" or "Add to Home Screen".';
+    const openMessage = 'Ludo Universe is already installed. Open it for the full-screen version.';
+    const installStateKey = 'ludo-universe-installed';
+
+    const sounds = {
+        roll: new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } }).toDestination(),
+        move: new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.01, release: 0.1 } }).toDestination(),
+        capture: new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.1 } }).toDestination(),
+        finish: new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.05, release: 0.1 } }).toDestination(),
+        win: new Tone.PolySynth(Tone.Synth).toDestination()
+    };
+
+    function playSound(sound) {
+        if (isMuted || Tone.context.state !== 'running') return;
+        switch(sound) {
+            case 'roll': sounds.roll.triggerAttackRelease("8n"); break;
+            case 'move': sounds.move.triggerAttackRelease("C5", "16n"); break;
+            case 'capture': sounds.capture.triggerAttackRelease("G3", "8n"); break;
+            case 'finish': sounds.finish.triggerAttackRelease("G5", "16n"); break;
+            case 'win':
+                const now = Tone.now();
+                sounds.win.triggerAttackRelease(["C4", "E4", "G4"], "8n", now);
+                sounds.win.triggerAttackRelease(["G4", "B4", "D5"], "8n", now + 0.2);
+                sounds.win.triggerAttackRelease(["C5", "E5", "G5"], "4n", now + 0.4);
+                break;
+        }
+    }
+
+    function isStandaloneMode() {
+        return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    }
+
+    function updateInstallButtonState() {
+        installButton.textContent = installedKnown ? 'Open' : 'Install';
+    }
+
+    async function refreshInstalledState() {
+        installedKnown = isStandaloneMode() || localStorage.getItem(installStateKey) === 'true';
+
+        if (!installedKnown && 'getInstalledRelatedApps' in navigator) {
+            try {
+                const relatedApps = await navigator.getInstalledRelatedApps();
+                if (relatedApps.length > 0) {
+                    installedKnown = true;
+                    localStorage.setItem(installStateKey, 'true');
+                }
+            } catch (error) {
+                console.log('Installed app check failed:', error);
+            }
+        }
+
+        updateInstallButtonState();
+    }
+
+    function showInstallBanner(message = installMessage) {
+        if (isStandaloneMode()) return;
+        installBannerText.textContent = message;
+        installBanner.hidden = false;
+        requestAnimationFrame(() => installBanner.classList.add('show'));
+    }
+
+    function hideInstallBanner() {
+        installBanner.classList.remove('show');
+        setTimeout(() => {
+            if (!installBanner.classList.contains('show')) {
+                installBanner.hidden = true;
+            }
+        }, 350);
+    }
+
+    function scheduleInstallBanner(delay = 2800) {
+        clearTimeout(installBannerTimer);
+        installBannerTimer = setTimeout(() => {
+            const nextMessage = installedKnown
+                ? openMessage
+                : (deferredInstallPrompt ? installMessage : installFallbackMessage);
+            showInstallBanner(nextMessage);
+        }, delay);
+    }
+
+    function toggleMute(shouldBeMuted) {
+        isMuted = shouldBeMuted;
+        if (muteBtn) {
+            muteBtn.textContent = isMuted ? 'Sound: off' : 'Sound: on';
+            muteBtn.setAttribute('aria-pressed', isMuted ? 'true' : 'false');
+        }
+        localStorage.setItem('ludoSoundSetting', JSON.stringify({ muted: isMuted }));
+    }
+
+    function openSettings() {
+        if (!settingsModal) return;
+        settingsModal.classList.remove('hidden');
+        settingsModal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeSettings() {
+        if (!settingsModal) return;
+        settingsModal.classList.add('hidden');
+        settingsModal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    }
+
+    function syncDiceToActivePlayer() {
+        // Obsolete, keeping an empty hook if needed or entirely removing its body to avoid errors
+    }
+
+    document.body.addEventListener('click', async () => {
+        if (Tone.context.state !== 'running') {
+            await Tone.start();
+        }
+    }, { once: true });
+
+
+    const PLAYER_COLORS = {
+        p1: { light: '#ff7979', dark: '#ff4757', faint: '#ffebee' },
+        p2: { light: '#55ef90', dark: '#2ed573', faint: '#e8f5e9' },
+        p3: { light: '#ffc048', dark: '#ffa502', faint: '#fff8e1' },
+        p4: { light: '#74b9ff', dark: '#1e90ff', faint: '#e3f2fd' }
+    };
+    const INACTIVE_CORNER_COLORS = { light: '#b2bec3', dark: '#95a5a6', faint: '#dfe6e9' };
+    const PLAYER_CSS_COLORS = ['var(--player1-color)', 'var(--player2-color)', 'var(--player3-color)', 'var(--player4-color)'];
+    let twoPlayerMode = false;
+
+    function isPlayerActive(p) {
+        if (!twoPlayerMode) return true;
+        return p === 0 || p === 2;
+    }
+
+    function ranksNeededToEndMatch() {
+        return twoPlayerMode ? 1 : 3;
+    }
+
+    function cornerPalette(i) {
+        const list = [PLAYER_COLORS.p1, PLAYER_COLORS.p2, PLAYER_COLORS.p3, PLAYER_COLORS.p4];
+        if (twoPlayerMode && (i === 1 || i === 3)) return INACTIVE_CORNER_COLORS;
+        return list[i];
+    }
+
+    function tokenPalette(playerIndex) {
+        if (twoPlayerMode && (playerIndex === 1 || playerIndex === 3)) return INACTIVE_CORNER_COLORS;
+        return [PLAYER_COLORS.p1, PLAYER_COLORS.p2, PLAYER_COLORS.p3, PLAYER_COLORS.p4][playerIndex];
+    }
+
+    function ensureCurrentPlayerIsActive() {
+        if (isPlayerActive(currentPlayerIndex) && !playerRanks.includes(currentPlayerIndex)) return;
+        for (let i = 0; i < 4; i++) {
+            if (isPlayerActive(i) && !playerRanks.includes(i)) {
+                currentPlayerIndex = i;
+                return;
+            }
+        }
+    }
+
+    const homePositions = [
+        [{ x: 1.5, y: 1.5 }, { x: 4.5, y: 1.5 }, { x: 1.5, y: 4.5 }, { x: 4.5, y: 4.5 }],
+        [{ x: 10.5, y: 1.5 }, { x: 13.5, y: 1.5 }, { x: 10.5, y: 4.5 }, { x: 13.5, y: 4.5 }],
+        [{ x: 10.5, y: 10.5 }, { x: 13.5, y: 10.5 }, { x: 10.5, y: 13.5 }, { x: 13.5, y: 13.5 }],
+        [{ x: 1.5, y: 10.5 }, { x: 4.5, y: 10.5 }, { x: 1.5, y: 13.5 }, { x: 4.5, y: 13.5 }]
+    ];
+    
+    const path = [
+        { x: 1, y: 6 }, { x: 2, y: 6 }, { x: 3, y: 6 }, { x: 4, y: 6 }, { x: 5, y: 6 }, 
+        { x: 6, y: 5 }, { x: 6, y: 4 }, { x: 6, y: 3 }, { x: 6, y: 2 }, { x: 6, y: 1 }, { x: 6, y: 0 },
+        { x: 7, y: 0 }, { x: 8, y: 0 },
+        { x: 8, y: 1 }, { x: 8, y: 2 }, { x: 8, y: 3 }, { x: 8, y: 4 }, { x: 8, y: 5 },
+        { x: 9, y: 6 }, { x: 10, y: 6 }, { x: 11, y: 6 }, { x: 12, y: 6 }, { x: 13, y: 6 }, { x: 14, y: 6 },
+        { x: 14, y: 7 }, { x: 14, y: 8 },
+        { x: 13, y: 8 }, { x: 12, y: 8 }, { x: 11, y: 8 }, { x: 10, y: 8 }, { x: 9, y: 8 },
+        { x: 8, y: 9 }, { x: 8, y: 10 }, { x: 8, y: 11 }, { x: 8, y: 12 }, { x: 8, y: 13 }, { x: 8, y: 14 },
+        { x: 7, y: 14 }, { x: 6, y: 14 },
+        { x: 6, y: 13 }, { x: 6, y: 12 }, { x: 6, y: 11 }, { x: 6, y: 10 }, { x: 6, y: 9 },
+        { x: 5, y: 8 }, { x: 4, y: 8 }, { x: 3, y: 8 }, { x: 2, y: 8 }, { x: 1, y: 8 }, { x: 0, y: 8 },
+        { x: 0, y: 7 }, { x: 0, y: 6 }
+    ];
+
+    const homePaths = [
+        [{x: 1, y: 7}, {x: 2, y: 7}, {x: 3, y: 7}, {x: 4, y: 7}, {x: 5, y: 7}, {x: 6, y: 7}],
+        [{x: 7, y: 1}, {x: 7, y: 2}, {x: 7, y: 3}, {x: 7, y: 4}, {x: 7, y: 5}, {x: 7, y: 6}],
+        [{x: 13, y: 7}, {x: 12, y: 7}, {x: 11, y: 7}, {x: 10, y: 7}, {x: 9, y: 7}, {x: 8, y: 7}],
+        [{x: 7, y: 13}, {x: 7, y: 12}, {x: 7, y: 11}, {x: 7, y: 10}, {x: 7, y: 9}, {x: 7, y: 8}]
+    ];
+    
+    const startOffsets = [0, 13, 26, 39];
+    const safeZones = [0, 8, 13, 21, 26, 34, 39, 47];
+
+    let diceBag = [];
+    let tokens = [];
+    let currentPlayerIndex = 0;
+    let diceRoll = 0;
+    let gameState = 'roll';
+    let movableTokens = [];
+    let captureMadeThisTurn = false;
+    let tokenFinishedThisTurn = false;
+    let isGameSaved = true;
+    let playerRanks = [];
+
+    function fillAndShuffleDiceBag() {
+        diceBag = [];
+        const distribution = { 1: 8, 2: 9, 3: 10, 4: 11, 5: 12, 6: 12 };
+        for (const number in distribution) {
+            for (let i = 0; i < distribution[number]; i++) {
+                diceBag.push(parseInt(number));
+            }
+        }
+        for (let i = diceBag.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [diceBag[i], diceBag[j]] = [diceBag[j], diceBag[i]];
+        }
+    }
+
+    function initializeGame() {
+        tokens = [];
+        for (let i = 0; i < 4; i++) {
+            for (let j = 0; j < 4; j++) {
+                tokens.push({ player: i, id: j, position: -1, status: 'home' });
+            }
+        }
+        fillAndShuffleDiceBag();
+        currentPlayerIndex = 0;
+        gameState = 'roll';
+        isGameSaved = true;
+        playerRanks = [];
+        ensureCurrentPlayerIsActive();
+        updateTurnIndicator();
+        diceEl.className = 'dice';
+        if (diceBox) diceBox.style.cursor = 'pointer';
+        gameMessageEl.textContent = 'Roll the dice to start!';
+        handleResize();
+    }
+    
+    function resetGame() {
+        localStorage.removeItem('ludoGameState');
+        initializeGame();
+    }
+
+    function saveGame() {
+        const gameStateToSave = {
+            tokens: tokens,
+            currentPlayerIndex: currentPlayerIndex,
+            playerRanks: playerRanks,
+            twoPlayerMode: twoPlayerMode
+        };
+        localStorage.setItem('ludoGameState', JSON.stringify(gameStateToSave));
+        isGameSaved = true;
+        gameMessageEl.textContent = "Game Saved!";
+        setTimeout(() => {
+            if(gameState === 'roll') gameMessageEl.textContent = 'Roll the dice!';
+            else if (gameState === 'move') gameMessageEl.textContent = 'Click a highlighted token to move.';
+        }, 2000);
+    }
+
+    function loadGame() {
+        const savedState = JSON.parse(localStorage.getItem('ludoGameState'));
+        if (savedState) {
+            tokens = savedState.tokens;
+            currentPlayerIndex = savedState.currentPlayerIndex;
+            playerRanks = savedState.playerRanks || [];
+            twoPlayerMode = !!savedState.twoPlayerMode;
+            if (twoPlayerCheckbox) twoPlayerCheckbox.checked = twoPlayerMode;
+            
+            fillAndShuffleDiceBag();
+            gameState = 'roll';
+            diceRoll = 0;
+            isGameSaved = true;
+            ensureCurrentPlayerIsActive();
+            
+            updateTurnIndicator();
+            diceEl.className = 'dice';
+            gameMessageEl.textContent = 'Game Loaded. Roll the dice!';
+            if (diceBox) diceBox.style.cursor = 'pointer';
+            
+            handleResize();
+            return true;
+        }
+        return false;
+    }
+
+    function handleRollDice() {
+        if (gameState !== 'roll') return;
+        captureMadeThisTurn = false;
+        tokenFinishedThisTurn = false;
+        gameState = 'rolling'; 
+        if (diceBox) diceBox.style.cursor = 'not-allowed';
+        diceEl.className = 'dice rolling'; 
+        playSound('roll');
+        setTimeout(() => {
+            if (diceBag.length === 0) fillAndShuffleDiceBag();
+            diceRoll = diceBag.pop();
+            diceEl.className = 'dice'; 
+            diceEl.classList.add(`show-${diceRoll}`);
+            checkForMovableTokens();
+        }, 1500); 
+    }
+    
+    function switchPlayer() {
+        let nextPlayer = (currentPlayerIndex + 1) % 4;
+        for (let step = 0; step < 8; step++) {
+            const skip = playerRanks.includes(nextPlayer) || !isPlayerActive(nextPlayer);
+            if (!skip) break;
+            if (playerRanks.length >= ranksNeededToEndMatch()) {
+                gameState = 'gameover';
+                gameMessageEl.textContent = 'Game Over! Press Reset.';
+                if (diceBox) diceBox.style.cursor = 'not-allowed';
+                return;
+            }
+            nextPlayer = (nextPlayer + 1) % 4;
+        }
+        currentPlayerIndex = nextPlayer;
+
+        gameState = 'roll';
+        if (diceBox) diceBox.style.cursor = 'pointer';
+        updateTurnIndicator();
+        gameMessageEl.textContent = 'Roll the dice!';
+    }
+
+    function checkForMovableTokens() {
+        movableTokens = [];
+        const playerTokens = tokens.filter(t => t.player === currentPlayerIndex);
+        playerTokens.forEach(token => {
+            if ((token.status === 'home' && diceRoll === 6) || (token.status === 'active' && token.position + diceRoll <= 56)) {
+                movableTokens.push(token);
+            }
+        });
+
+        if (movableTokens.length === 1) {
+            gameMessageEl.textContent = 'Only one move! Moving automatically.';
+            drawEverything();
+            setTimeout(() => moveToken(movableTokens[0]), 1000);
+        } else if (movableTokens.length > 1) {
+            gameState = 'move';
+            gameMessageEl.textContent = 'Click a highlighted token to move.';
+            drawEverything();
+        } else {
+            gameMessageEl.textContent = `No valid moves.`;
+            setTimeout(switchPlayer, 1500); 
+        }
+    }
+
+    function moveToken(token) {
+        if (gameState !== 'move' && gameState !== 'rolling') return;
+        isGameSaved = false;
+        gameState = 'animating';
+        movableTokens = [];
+        gameMessageEl.textContent = 'Moving...';
+        if (token.status === 'home' && diceRoll === 6) {
+            token.status = 'active';
+            token.position = 0;
+            drawEverything();
+            playSound('move');
+            finalizeMove(token);
+        } else {
+            animateTokenMove(token, diceRoll);
+        }
+    }
+
+    function animateTokenMove(token, stepsLeft) {
+        if (stepsLeft <= 0) {
+            finalizeMove(token);
+            return;
+        }
+        token.position++;
+        playSound('move');
+        drawEverything();
+        setTimeout(() => animateTokenMove(token, stepsLeft - 1), 350);
+    }
+
+    function finalizeMove(token) {
+        if (token.position === 56) {
+            token.status = 'finished';
+            tokenFinishedThisTurn = true;
+            playSound('finish');
+        }
+        checkForCapture(token);
+        const winner = checkForWinner();
+
+        if (winner !== -1) {
+            playerRanks.push(winner);
+            gameMessageEl.textContent = `Player ${winner + 1} finished!`;
+            playSound('win');
+        }
+        
+        if (playerRanks.length >= ranksNeededToEndMatch()) {
+            gameState = 'gameover';
+            gameMessageEl.textContent = 'Game Over! Press Reset.';
+            if (diceBox) diceBox.style.cursor = 'not-allowed';
+        } else if (diceRoll === 6 || captureMadeThisTurn || tokenFinishedThisTurn) {
+            gameState = 'roll';
+            if (diceBox) diceBox.style.cursor = 'pointer';
+            if (tokenFinishedThisTurn) gameMessageEl.textContent = 'Token is home! Roll again.';
+            else if (captureMadeThisTurn) gameMessageEl.textContent = 'You captured a token! Roll again.';
+            else gameMessageEl.textContent = 'You rolled a 6! Roll again.';
+        } else {
+            switchPlayer();
+        }
+        drawEverything();
+    }
+    
+    function checkForCapture(movedToken) {
+        if (movedToken.status !== 'active' || movedToken.position < 0) return;
+        
+        // FIX: Must check BEFORE the modulo calculation
+        if (movedToken.position > 50) return;
+        
+        const movedTokenGlobalPos = (movedToken.position + startOffsets[movedToken.player]) % 52;
+        
+        if (safeZones.includes(movedTokenGlobalPos)) return;
+        
+        tokens.forEach(token => {
+            if (token.player !== movedToken.player && 
+                token.status === 'active' && 
+                token.position >= 0) {
+                
+                // FIX: Skip tokens in home path
+                if (token.position > 50) return;
+                
+                const opponentGlobalPos = (token.position + startOffsets[token.player]) % 52;
+                
+                if (movedTokenGlobalPos === opponentGlobalPos) {
+                    token.status = 'home';
+                    token.position = -1;
+                    captureMadeThisTurn = true;
+                    playSound('capture');
+                }
+            }
+        });
+    }
+
+
+    function drawBoard() {
+        const homeSize = SQUARE_SIZE * 6;
+        ctx.clearRect(0, 0, boardSize, boardSize);
+        ctx.fillStyle = '#ecf0f1';
+        ctx.fillRect(0,0, boardSize, boardSize);
+        
+        for (let i = 0; i < 4; i++) {
+            let x, y, grad;
+            const corner = cornerPalette(i);
+            if (i === 0) { x = 0; y = 0; grad = ctx.createLinearGradient(0,0, homeSize, homeSize); }
+            if (i === 1) { x = boardSize - homeSize; y = 0; grad = ctx.createLinearGradient(x + homeSize, 0, x, homeSize); }
+            if (i === 2) { x = boardSize - homeSize; y = boardSize - homeSize; grad = ctx.createLinearGradient(x + homeSize, y + homeSize, x, y); }
+            if (i === 3) { x = 0; y = boardSize - homeSize; grad = ctx.createLinearGradient(0, y + homeSize, homeSize, y); }
+            
+            grad.addColorStop(0, corner.light);
+            grad.addColorStop(1, corner.dark);
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, y, homeSize, homeSize);
+            
+            let w_x, w_y, w_s = homeSize - 2*SQUARE_SIZE;
+            if (i === 0) { w_x = SQUARE_SIZE; w_y = SQUARE_SIZE; }
+            if (i === 1) { w_x = boardSize - homeSize + SQUARE_SIZE; w_y = SQUARE_SIZE; }
+            if (i === 2) { w_x = boardSize - homeSize + SQUARE_SIZE; w_y = boardSize - homeSize + SQUARE_SIZE; }
+            if (i === 3) { w_x = SQUARE_SIZE; w_y = boardSize - homeSize + SQUARE_SIZE; }
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.fillRect(w_x, w_y, w_s, w_s);
+        }
+
+        const glossGradient = ctx.createLinearGradient(0, 0, boardSize, boardSize);
+        glossGradient.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+        glossGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.0)');
+        glossGradient.addColorStop(1, 'rgba(255, 255, 255, 0.25)');
+        
+        const drawGoldenStroke = (x, y, w, h) => {
+            ctx.strokeStyle = '#D4AF37';
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 2;
+            ctx.lineWidth = 0.2;
+            ctx.strokeRect(x, y, w, h);
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+        };
+
+        for(let i=0; i < path.length; i++) {
+            const pos = path[i];
+            const px = pos.x * SQUARE_SIZE;
+            const py = pos.y * SQUARE_SIZE;
+            
+            let quadrantColor = '#FFFFFF';
+            if(pos.y <=5 && pos.x >=6 && pos.x <= 8) quadrantColor = cornerPalette(0).faint;
+            else if (pos.x >=9 && pos.y >=6 && pos.y <= 8) quadrantColor = cornerPalette(1).faint;
+            else if (pos.y >=9 && pos.x >=6 && pos.x <= 8) quadrantColor = cornerPalette(2).faint;
+            else if (pos.x <=5 && pos.y >=6 && pos.y <= 8) quadrantColor = cornerPalette(3).faint;
+
+            const grad = ctx.createLinearGradient(px, py, px + SQUARE_SIZE, py + SQUARE_SIZE);
+            grad.addColorStop(0, 'white');
+            grad.addColorStop(1, quadrantColor);
+            ctx.fillStyle = grad;
+            ctx.fillRect(px, py, SQUARE_SIZE, SQUARE_SIZE);
+
+
+            drawGoldenStroke(pos.x * SQUARE_SIZE, pos.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+            if(safeZones.includes(i)) {
+                const starX = (pos.x + 0.5) * SQUARE_SIZE;
+                const starY = (pos.y + 0.5) * SQUARE_SIZE;
+                const starSize = SQUARE_SIZE * 0.6;
+                const gradient = ctx.createRadialGradient(starX, starY, starSize * 0.1, starX, starY, starSize * 0.5);
+                gradient.addColorStop(0, '#FFD700');
+                gradient.addColorStop(1, '#FFA500');
+                ctx.font = `${starSize}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.fillText('★', starX + 1, starY + 1);
+                ctx.fillStyle = gradient;
+                ctx.fillText('★', starX, starY);
+            }
+        }
+
+        for (let i = 0; i < 4; i++) {
+            const hp = cornerPalette(i);
+            for (let j = 0; j < 6; j++) {
+                const pos = homePaths[i][j];
+                const grad = ctx.createLinearGradient(pos.x*SQUARE_SIZE, pos.y*SQUARE_SIZE, (pos.x+1)*SQUARE_SIZE, (pos.y+1)*SQUARE_SIZE);
+                grad.addColorStop(0, hp.light);
+                grad.addColorStop(1, hp.dark);
+                ctx.fillStyle = grad;
+                ctx.fillRect(pos.x * SQUARE_SIZE, pos.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+                drawGoldenStroke(pos.x * SQUARE_SIZE, pos.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
+            }
+        }
+
+        const center_x = boardSize / 2;
+        const center_y = boardSize / 2;
+        const topLeft = { x: homeSize, y: homeSize };
+        const topRight = { x: boardSize - homeSize, y: homeSize };
+        const bottomLeft = { x: homeSize, y: boardSize - homeSize };
+        const bottomRight = { x: boardSize - homeSize, y: boardSize - homeSize };
+
+        const grad1 = ctx.createLinearGradient(topLeft.x, topLeft.y, center_x, center_y);
+        grad1.addColorStop(0, PLAYER_COLORS.p1.light); grad1.addColorStop(1, PLAYER_COLORS.p1.dark);
+        ctx.fillStyle = grad1;
+        ctx.beginPath(); ctx.moveTo(topLeft.x, topLeft.y); ctx.lineTo(bottomLeft.x, bottomLeft.y); ctx.lineTo(center_x, center_y); ctx.closePath(); ctx.fill();
+
+        const c2 = twoPlayerMode ? INACTIVE_CORNER_COLORS : PLAYER_COLORS.p2;
+        const grad2 = ctx.createLinearGradient(topRight.x, topLeft.y, center_x, center_y);
+        grad2.addColorStop(0, c2.light); grad2.addColorStop(1, c2.dark);
+        ctx.fillStyle = grad2;
+        ctx.beginPath(); ctx.moveTo(topLeft.x, topLeft.y); ctx.lineTo(topRight.x, topRight.y); ctx.lineTo(center_x, center_y); ctx.closePath(); ctx.fill();
+        
+        const grad3 = ctx.createLinearGradient(topRight.x, bottomRight.y, center_x, center_y);
+        grad3.addColorStop(0, PLAYER_COLORS.p3.light); grad3.addColorStop(1, PLAYER_COLORS.p3.dark);
+        ctx.fillStyle = grad3;
+        ctx.beginPath(); ctx.moveTo(topRight.x, topRight.y); ctx.lineTo(bottomRight.x, bottomRight.y); ctx.lineTo(center_x, center_y); ctx.closePath(); ctx.fill();
+
+        const c4 = twoPlayerMode ? INACTIVE_CORNER_COLORS : PLAYER_COLORS.p4;
+        const grad4 = ctx.createLinearGradient(bottomLeft.x, bottomRight.y, center_x, center_y);
+        grad4.addColorStop(0, c4.light); grad4.addColorStop(1, c4.dark);
+        ctx.fillStyle = grad4;
+        ctx.beginPath(); ctx.moveTo(bottomLeft.x, bottomLeft.y); ctx.lineTo(bottomRight.x, bottomRight.y); ctx.lineTo(center_x, center_y); ctx.closePath(); ctx.fill();
+        
+        ctx.fillStyle = glossGradient;
+        ctx.fillRect(0, 0, boardSize, boardSize);
+    }
+
+    function drawTokens() {
+        tokens.forEach(token => {
+            let x, y;
+            const playerColorSet = tokenPalette(token.player);
+            if (token.status === 'home') {
+                const homePos = homePositions[token.player][token.id];
+                x = homePos.x * SQUARE_SIZE;
+                y = homePos.y * SQUARE_SIZE;
+            } else if (token.status === 'active') {
+                if (token.position > 50) {
+                    const homePathPos = homePaths[token.player][token.position - 51];
+                    x = (homePathPos.x + 0.5) * SQUARE_SIZE;
+                    y = (homePathPos.y + 0.5) * SQUARE_SIZE;
+                } else {
+                    const pathPos = path[(token.position + startOffsets[token.player]) % 52];
+                    x = (pathPos.x + 0.5) * SQUARE_SIZE;
+                    y = (pathPos.y + 0.5) * SQUARE_SIZE;
+                }
+            } else if (token.status === 'finished') {
+                const homePathPos = homePaths[token.player][5];
+                 x = (homePathPos.x + 0.5) * SQUARE_SIZE;
+                 y = (homePathPos.y + 0.5) * SQUARE_SIZE;
+            }
+            
+            if (x !== undefined) {
+                
+                let drawY = y;
+                if (movableTokens.includes(token)) {
+                    drawY = y - TOKEN_RADIUS * 0.3;
+                }
+                
+                if (movableTokens.includes(token)) {
+                    const pinRadius = TOKEN_RADIUS * 1.2;
+                    const pinTipY = drawY + TOKEN_RADIUS * 1.9;
+                    ctx.fillStyle = playerColorSet.dark;
+                    ctx.globalAlpha = 0.6;
+                    ctx.beginPath();
+                    ctx.arc(x, drawY, pinRadius, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(x - pinRadius, drawY);
+                    ctx.lineTo(x + pinRadius, drawY);
+                    ctx.lineTo(x, pinTipY);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+                }
+                const grad = ctx.createRadialGradient(x - TOKEN_RADIUS * 0.2, drawY - TOKEN_RADIUS * 0.2, TOKEN_RADIUS * 0.1, x, drawY, TOKEN_RADIUS);
+                grad.addColorStop(0, playerColorSet.light);
+                grad.addColorStop(1, playerColorSet.dark);
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(x, drawY, TOKEN_RADIUS, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        });
+    }
+    
+    function drawEverything() {
+        drawBoard();
+        drawTokens();
+    }
+
+    function updateTurnIndicator() {
+        turnIndicatorEl.textContent = `Player ${currentPlayerIndex + 1}'s Turn`;
+        turnIndicatorEl.style.backgroundColor = PLAYER_CSS_COLORS[currentPlayerIndex];
+        syncDiceToActivePlayer();
+    }
+    
+    function checkForWinner() {
+        for(let i=0; i<4; i++) {
+            if (!isPlayerActive(i)) continue;
+            if(!playerRanks.includes(i) && tokens.filter(t => t.player === i).every(t => t.status === 'finished')) return i;
+        }
+        return -1;
+    }
+
+    function handleCanvasClick(event) {
+        if (gameState !== 'move') return;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const clickX = (event.clientX - rect.left) * scaleX;
+        const clickY = (event.clientY - rect.top) * scaleY;
+        let clickedToken = null;
+        let closestDistance = TOKEN_RADIUS * 2;
+
+        movableTokens.forEach(token => {
+            let tokenX, tokenY;
+            if (token.status === 'home') {
+                const homePos = homePositions[token.player][token.id];
+                tokenX = homePos.x * SQUARE_SIZE;
+                tokenY = homePos.y * SQUARE_SIZE;
+            } else if(token.status === 'active') {
+                 if (token.position > 50) {
+                    const homePathPos = homePaths[token.player][token.position - 51];
+                    tokenX = (homePathPos.x + 0.5) * SQUARE_SIZE;
+                    tokenY = (homePathPos.y + 0.5) * SQUARE_SIZE;
+                 } else {
+                    const pathPos = path[(token.position + startOffsets[token.player]) % 52];
+                    tokenX = (pathPos.x + 0.5) * SQUARE_SIZE;
+                    tokenY = (pathPos.y + 0.5) * SQUARE_SIZE;
+                 }
+            }
+            if (tokenX !== undefined) {
+                const distance = Math.sqrt(Math.pow(clickX - tokenX, 2) + Math.pow(clickY - tokenY, 2));
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    clickedToken = token;
+                }
+            }
+        });
+        if (clickedToken) moveToken(clickedToken);
+    }
+    
+    function handleResize() {
+        const controlsHeight = document.querySelector('.controls')?.offsetHeight || 0;
+        const headerHeight = document.querySelector('.game-header')?.offsetHeight || 0;
+        
+        const totalVerticalSpace = window.innerHeight;
+        const nonCanvasHeight = controlsHeight + headerHeight + 50; 
+        
+        const availableHeight = totalVerticalSpace - nonCanvasHeight;
+        const availableWidth = window.innerWidth * 0.95;
+        
+        if (window.matchMedia("(min-width: 800px) and (min-height: 500px)").matches) {
+            boardSize = Math.max(120, Math.min(window.innerHeight * 0.85, window.innerWidth * 0.6));
+        } else {
+             boardSize = Math.max(120, Math.floor(Math.min(availableWidth, availableHeight)));
+        }
+        
+        canvas.style.width = `${boardSize}px`;
+        canvas.style.height = `${boardSize}px`;
+        canvas.width = boardSize;
+        canvas.height = boardSize;
+        SQUARE_SIZE = boardSize / 15;
+        TOKEN_RADIUS = SQUARE_SIZE * 0.35;
+        drawEverything();
+    }
+
+    if (diceBox) diceBox.addEventListener('click', handleRollDice);
+    if (twoPlayerCheckbox) {
+        twoPlayerCheckbox.addEventListener('change', () => {
+            twoPlayerMode = twoPlayerCheckbox.checked;
+            localStorage.setItem('ludoTwoPlayerPref', JSON.stringify(twoPlayerMode));
+            localStorage.removeItem('ludoGameState');
+            initializeGame();
+        });
+    }
+    if (saveBtn) saveBtn.addEventListener('click', saveGame);
+    if (resetBtn) resetBtn.addEventListener('click', () => { closeSettings(); resetGame(); });
+    if (muteBtn) muteBtn.addEventListener('click', () => toggleMute(!isMuted));
+    if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
+    if (settingsClose) settingsClose.addEventListener('click', closeSettings);
+    if (settingsBackdrop) settingsBackdrop.addEventListener('click', closeSettings);
+    installClose.addEventListener('click', () => hideInstallBanner());
+    installButton.addEventListener('click', async () => {
+        if (installedKnown) {
+            const appUrl = new URL('./', window.location.href).href;
+            const openedWindow = window.open(appUrl, '_blank');
+            if (!openedWindow) {
+                window.location.href = appUrl;
+            }
+            return;
+        }
+
+        if (!deferredInstallPrompt) {
+            showInstallBanner(installFallbackMessage);
+            return;
+        }
+
+        deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+
+        if (outcome === 'accepted') {
+            hideInstallBanner();
+        } else {
+            showInstallBanner(installFallbackMessage);
+        }
+    });
+    canvas.addEventListener('click', handleCanvasClick);
+    window.addEventListener('resize', handleResize);
+    
+    window.addEventListener('keydown', (e) => {
+        if (settingsModal && !settingsModal.classList.contains('hidden')) {
+            if (e.key === 'Escape') closeSettings();
+            return;
+        }
+        if (e.key === 'Enter' || e.key === '5') {
+            handleRollDice();
+        }
+    });
+    
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker: Registered'))
+                .catch(err => console.error('Service Worker: Registration Failed: ', err));
+        });
+    }
+
+    window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        scheduleInstallBanner(3200);
+    });
+
+    window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        installedKnown = true;
+        localStorage.setItem(installStateKey, 'true');
+        updateInstallButtonState();
+        hideInstallBanner();
+    });
+
+    splashScreen.addEventListener('transitionend', () => {
+        splashScreen.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+        
+        gameWrapper.classList.remove('hidden');
+    
+        const savedSoundSetting = JSON.parse(localStorage.getItem('ludoSoundSetting'));
+        toggleMute(savedSoundSetting ? savedSoundSetting.muted : false);
+
+        const prefRaw = localStorage.getItem('ludoTwoPlayerPref');
+        if (prefRaw !== null) {
+            try {
+                twoPlayerMode = JSON.parse(prefRaw);
+                if (twoPlayerCheckbox) twoPlayerCheckbox.checked = twoPlayerMode;
+            } catch (e) { /* ignore */ }
+        }
+
+        if (!loadGame()) {
+            initializeGame();
+        }
+
+        requestAnimationFrame(() => {
+            handleResize();
+            requestAnimationFrame(handleResize);
+        });
+
+        refreshInstalledState().finally(() => {
+            scheduleInstallBanner(500);
+        });
+    }, { once: true });
+
+    setTimeout(() => {
+        splashScreen.style.opacity = '0';
+    }, 3000);
+});
