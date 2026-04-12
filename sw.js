@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ludo-universe-v12';
+const CACHE_NAME = 'ludo-universe-v13';
 const urlsToCache = [
   './',
   './index.html',
