@@ -1007,6 +1007,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (clickedToken) moveToken(clickedToken);
     }
     
+    let lastBoardSize = 0;
     function handleResize() {
         const controlsHeight = document.querySelector('.controls')?.offsetHeight || 0;
         const headerHeight = document.querySelector('.game-header')?.offsetHeight || 0;
@@ -1017,11 +1018,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const availableHeight = totalVerticalSpace - nonCanvasHeight;
         const availableWidth = window.innerWidth * 0.95;
         
+        let newBoardSize;
         if (window.matchMedia("(min-width: 800px) and (min-height: 500px)").matches) {
-            boardSize = Math.max(120, Math.min(window.innerHeight * 0.85, window.innerWidth * 0.6));
+            newBoardSize = Math.max(120, Math.min(window.innerHeight * 0.85, window.innerWidth * 0.6));
         } else {
-             boardSize = Math.max(120, Math.floor(Math.min(availableWidth, availableHeight)));
+            newBoardSize = Math.max(120, Math.floor(Math.min(availableWidth, availableHeight)));
         }
+
+        if (newBoardSize === lastBoardSize) return;
+        lastBoardSize = newBoardSize;
+        boardSize = newBoardSize;
         
         canvas.style.width = `${boardSize}px`;
         canvas.style.height = `${boardSize}px`;

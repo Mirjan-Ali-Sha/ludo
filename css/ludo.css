@@ -89,6 +89,7 @@ body {
     box-sizing: border-box;
     min-height: min(100vh, 100%);
     gap: 4px;
+    will-change: transform;
 }
 
 /* ---- Compact header + HUD ---- */
@@ -800,12 +801,13 @@ body {
     background: rgba(20, 29, 43, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.18);
     box-shadow: 0 18px 48px rgba(0,0,0,0.45);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     transform: translateY(140%);
     opacity: 0;
     pointer-events: none;
     transition: transform 0.35s ease, opacity 0.35s ease;
+    will-change: transform, opacity;
 }
 .install-banner.show {
     transform: translateY(0);
