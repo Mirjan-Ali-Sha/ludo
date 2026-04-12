@@ -84,6 +84,73 @@
                     </label>
                     <p class="mode-hint">Green and blue corners stay disabled. Toggling resets the board.</p>
                 </div>
+                
+                <div class="settings-section">
+                    <p class="settings-label">Computer Players</p>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label class="mode-bar-label" for="ai-player-0">
+                            <input type="checkbox" id="ai-player-0" class="ai-checkbox" data-player="0" aria-label="AI Player 1">
+                            <span class="mode-toggle" aria-hidden="true"></span>
+                            <span>Player 1 (Red) AI</span>
+                        </label>
+                        <label class="mode-bar-label" for="ai-player-1" id="ai-player-1-wrap">
+                            <input type="checkbox" id="ai-player-1" class="ai-checkbox" data-player="1" aria-label="AI Player 2">
+                            <span class="mode-toggle" aria-hidden="true"></span>
+                            <span>Player 2 (Green) AI</span>
+                        </label>
+                        <label class="mode-bar-label" for="ai-player-2">
+                            <input type="checkbox" id="ai-player-2" class="ai-checkbox" data-player="2" aria-label="AI Player 3">
+                            <span class="mode-toggle" aria-hidden="true"></span>
+                            <span>Player 3 (Yellow) AI</span>
+                        </label>
+                        <label class="mode-bar-label" for="ai-player-3" id="ai-player-3-wrap">
+                            <input type="checkbox" id="ai-player-3" class="ai-checkbox" data-player="3" aria-label="AI Player 4">
+                            <span class="mode-toggle" aria-hidden="true"></span>
+                            <span>Player 4 (Blue) AI</span>
+                        </label>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <p class="settings-label">AI Playstyle</p>
+                        <label class="mode-bar-label" for="ai-mode-checkbox">
+                            <input type="checkbox" id="ai-mode-checkbox" aria-label="AI Mode">
+                            <span class="mode-toggle" aria-hidden="true"></span>
+                            <span id="ai-mode-label">Balanced</span>
+                        </label>
+                        <p class="mode-hint">Aggressive mode will prioritize capturing your tokens!</p>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <p class="settings-label">Advanced Rules</p>
+                    <label class="mode-bar-label" for="blockade-checkbox">
+                        <input type="checkbox" id="blockade-checkbox" aria-label="Enable Blockades">
+                        <span class="mode-toggle" aria-hidden="true"></span>
+                        <span>Enable Blockades</span>
+                    </label>
+                    <p class="mode-hint">If a player has 2 or more tokens on the same spot, they become invincible and cannot be captured.</p>
+                    <label class="mode-bar-label" for="single-win-checkbox" style="margin-top: 10px;">
+                        <input type="checkbox" id="single-win-checkbox" aria-label="Single Player Win">
+                        <span class="mode-toggle" aria-hidden="true"></span>
+                        <span>Single Player Win</span>
+                    </label>
+                    <p class="mode-hint">Game ends as soon as one player finishes all tokens. Turn off to play until 3 players finish.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="gameover-modal" class="gameover-modal hidden" role="dialog" aria-modal="true" aria-labelledby="gameover-title" aria-hidden="true">
+        <div class="gameover-modal__backdrop" id="gameover-backdrop"></div>
+        <div class="gameover-panel">
+            <div class="gameover-panel__head">
+                <h2 id="gameover-title">🏆 Game Over</h2>
+            </div>
+            <div class="gameover-panel__body">
+                <ol id="gameover-winners" class="gameover-winners"></ol>
+            </div>
+            <div class="gameover-panel__foot">
+                <button type="button" id="gameover-reset-btn" class="settings-action settings-action--danger">New Game</button>
             </div>
         </div>
     </div>
@@ -96,8 +163,8 @@
         <button id="install-button" class="install-banner-action" type="button">Install</button>
         <button id="install-close" class="install-banner-close" type="button" aria-label="Close install prompt">&times;</button>
     </div>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <script src="js/ludo-ai.js"></script>
     <script src="js/ludo-game.js"></script>
 </body>
 </html>

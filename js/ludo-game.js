@@ -24,6 +24,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsClose = document.getElementById('settings-close');
     const settingsBackdrop = document.getElementById('settings-backdrop');
     
+    const aiCheckboxes = [
+        document.getElementById('ai-player-0'),
+        document.getElementById('ai-player-1'),
+        document.getElementById('ai-player-2'),
+        document.getElementById('ai-player-3')
+    ];
+    const aiModeCheckbox = document.getElementById('ai-mode-checkbox');
+    const aiModeLabel = document.getElementById('ai-mode-label');
+    const blockadeCheckbox = document.getElementById('blockade-checkbox');
+    const singleWinCheckbox = document.getElementById('single-win-checkbox');
+    const gameoverModal = document.getElementById('gameover-modal');
+    const gameoverWinnersList = document.getElementById('gameover-winners');
+    const gameoverResetBtn = document.getElementById('gameover-reset-btn');
     let boardSize;
     let SQUARE_SIZE;
     let TOKEN_RADIUS;
@@ -127,6 +140,8 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsModal.classList.remove('hidden');
         settingsModal.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
+        // Push a fake history entry so browser back/gesture closes settings
+        history.pushState({ settingsOpen: true }, '');
     }
 
     function closeSettings() {
@@ -134,6 +149,55 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsModal.classList.add('hidden');
         settingsModal.setAttribute('aria-hidden', 'true');
         document.body.style.overflow = '';
+        // Clean up the history entry we pushed
+        if (history.state && history.state.settingsOpen) {
+            history.back();
+        }
+    }
+
+    // Browser back button / gesture closes settings
+    window.addEventListener('popstate', (e) => {
+        if (settingsModal && !settingsModal.classList.contains('hidden')) {
+            settingsModal.classList.add('hidden');
+            settingsModal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+        }
+        if (gameoverModal && !gameoverModal.classList.contains('hidden')) {
+            gameoverModal.classList.add('hidden');
+            gameoverModal.setAttribute('aria-hidden', 'true');
+        }
+    });
+
+    const PLAYER_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
+    const PLAYER_HEX = ['#ff4757', '#2ed573', '#ffa502', '#1e90ff'];
+
+    function showGameOver() {
+        gameMessageEl.textContent = 'Game Over!';
+        if (!gameoverModal || !gameoverWinnersList) return;
+        gameoverWinnersList.innerHTML = '';
+        playerRanks.forEach((pIdx) => {
+            const li = document.createElement('li');
+            const dot = document.createElement('span');
+            dot.className = 'winner-color';
+            dot.style.background = PLAYER_HEX[pIdx];
+            li.appendChild(dot);
+            const label = document.createElement('span');
+            label.textContent = `Player ${pIdx + 1} (${PLAYER_NAMES[pIdx]})`;
+            li.appendChild(label);
+            gameoverWinnersList.appendChild(li);
+        });
+        gameoverModal.classList.remove('hidden');
+        gameoverModal.setAttribute('aria-hidden', 'false');
+        history.pushState({ gameoverOpen: true }, '');
+    }
+
+    function hideGameOver() {
+        if (!gameoverModal) return;
+        gameoverModal.classList.add('hidden');
+        gameoverModal.setAttribute('aria-hidden', 'true');
+        if (history.state && history.state.gameoverOpen) {
+            history.back();
+        }
     }
 
     function syncDiceToActivePlayer() {
@@ -163,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function ranksNeededToEndMatch() {
+        if (singleWinMode) return 1;
         return twoPlayerMode ? 1 : 3;
     }
 
@@ -229,6 +294,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let tokenFinishedThisTurn = false;
     let isGameSaved = true;
     let playerRanks = [];
+    let computerPlayers = [false, false, false, false];
+    let aiMode = 'balanced'; // 'balanced' or 'aggressive'
+    let blockadeRuleEnabled = false;
+    let singleWinMode = false;
 
     function fillAndShuffleDiceBag() {
         diceBag = [];
@@ -262,10 +331,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (diceBox) diceBox.style.cursor = 'pointer';
         gameMessageEl.textContent = 'Roll the dice to start!';
         handleResize();
+
+        if (computerPlayers[currentPlayerIndex]) {
+            if (diceBox) diceBox.style.cursor = 'not-allowed';
+            setTimeout(() => {
+                if (gameState === 'roll') handleRollDice();
+            }, 1000);
+        }
     }
     
     function resetGame() {
         localStorage.removeItem('ludoGameState');
+        hideGameOver();
         initializeGame();
     }
 
@@ -335,8 +412,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!skip) break;
             if (playerRanks.length >= ranksNeededToEndMatch()) {
                 gameState = 'gameover';
-                gameMessageEl.textContent = 'Game Over! Press Reset.';
                 if (diceBox) diceBox.style.cursor = 'not-allowed';
+                showGameOver();
                 return;
             }
             nextPlayer = (nextPlayer + 1) % 4;
@@ -347,6 +424,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (diceBox) diceBox.style.cursor = 'pointer';
         updateTurnIndicator();
         gameMessageEl.textContent = 'Roll the dice!';
+        
+        if (computerPlayers[currentPlayerIndex]) {
+            if (diceBox) diceBox.style.cursor = 'not-allowed';
+            setTimeout(() => {
+                if (gameState === 'roll') {
+                    handleRollDice();
+                }
+            }, 800);
+        }
     }
 
     function checkForMovableTokens() {
@@ -363,9 +449,19 @@ document.addEventListener('DOMContentLoaded', () => {
             drawEverything();
             setTimeout(() => moveToken(movableTokens[0]), 1000);
         } else if (movableTokens.length > 1) {
-            gameState = 'move';
-            gameMessageEl.textContent = 'Click a highlighted token to move.';
-            drawEverything();
+            if (computerPlayers[currentPlayerIndex] && window.LudoAI) {
+                gameMessageEl.textContent = 'Computer is thinking...';
+                drawEverything();
+                // AI picks best move
+                setTimeout(() => {
+                    const best = window.LudoAI.getBestMove(movableTokens, tokens, currentPlayerIndex, diceRoll, aiMode, blockadeRuleEnabled);
+                    moveToken(best || movableTokens[0]);
+                }, 800);
+            } else {
+                gameState = 'move';
+                gameMessageEl.textContent = 'Click a highlighted token to move.';
+                drawEverything();
+            }
         } else {
             gameMessageEl.textContent = `No valid moves.`;
             setTimeout(switchPlayer, 1500); 
@@ -417,14 +513,21 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (playerRanks.length >= ranksNeededToEndMatch()) {
             gameState = 'gameover';
-            gameMessageEl.textContent = 'Game Over! Press Reset.';
             if (diceBox) diceBox.style.cursor = 'not-allowed';
+            showGameOver();
         } else if (diceRoll === 6 || captureMadeThisTurn || tokenFinishedThisTurn) {
             gameState = 'roll';
             if (diceBox) diceBox.style.cursor = 'pointer';
             if (tokenFinishedThisTurn) gameMessageEl.textContent = 'Token is home! Roll again.';
             else if (captureMadeThisTurn) gameMessageEl.textContent = 'You captured a token! Roll again.';
             else gameMessageEl.textContent = 'You rolled a 6! Roll again.';
+
+            if (computerPlayers[currentPlayerIndex]) {
+                if (diceBox) diceBox.style.cursor = 'not-allowed';
+                setTimeout(() => {
+                    if (gameState === 'roll') handleRollDice();
+                }, 800);
+            }
         } else {
             switchPlayer();
         }
@@ -452,6 +555,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 const opponentGlobalPos = (token.position + startOffsets[token.player]) % 52;
                 
                 if (movedTokenGlobalPos === opponentGlobalPos) {
+                    let blockadeCount = 1;
+                    if (blockadeRuleEnabled) {
+                        blockadeCount = tokens.filter(t => 
+                            t.player === token.player && 
+                            t.status === 'active' && 
+                            t.position <= 50 && 
+                            ((t.position + startOffsets[t.player]) % 52 === opponentGlobalPos)
+                        ).length;
+                    }
+
+                    if (blockadeRuleEnabled && blockadeCount >= 2) {
+                        // Invincible blockade
+                        return;
+                    }
+
                     token.status = 'home';
                     token.position = -1;
                     captureMadeThisTurn = true;
@@ -728,11 +846,68 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (diceBox) diceBox.addEventListener('click', handleRollDice);
+    function saveAIPref() {
+        localStorage.setItem('ludoAIPref', JSON.stringify({ players: computerPlayers, mode: aiMode }));
+    }
+
+    function updateAITogglesState() {
+        if (twoPlayerMode) {
+            // Disable players 2 (Green) and 4 (Blue) UI toggles unconditionally.
+            if (aiCheckboxes[1]) {
+                aiCheckboxes[1].disabled = true;
+                aiCheckboxes[1].checked = false;
+                computerPlayers[1] = false;
+                document.getElementById('ai-player-1-wrap').style.opacity = '0.5';
+            }
+            if (aiCheckboxes[3]) {
+                aiCheckboxes[3].disabled = true;
+                aiCheckboxes[3].checked = false;
+                computerPlayers[3] = false;
+                document.getElementById('ai-player-3-wrap').style.opacity = '0.5';
+            }
+        } else {
+            if (aiCheckboxes[1]) {
+                aiCheckboxes[1].disabled = false;
+                document.getElementById('ai-player-1-wrap').style.opacity = '1';
+            }
+            if (aiCheckboxes[3]) {
+                aiCheckboxes[3].disabled = false;
+                document.getElementById('ai-player-3-wrap').style.opacity = '1';
+            }
+        }
+        saveAIPref();
+    }
+
+    aiCheckboxes.forEach((checkbox, i) => {
+        if (checkbox) {
+            checkbox.addEventListener('change', (e) => {
+                computerPlayers[i] = e.target.checked;
+                saveAIPref();
+            });
+        }
+    });
+
+    if (blockadeCheckbox) {
+        blockadeCheckbox.addEventListener('change', (e) => {
+            blockadeRuleEnabled = e.target.checked;
+            localStorage.setItem('ludoBlockadePref', JSON.stringify(blockadeRuleEnabled));
+        });
+    }
+
+    if (aiModeCheckbox) {
+        aiModeCheckbox.addEventListener('change', (e) => {
+            aiMode = e.target.checked ? 'aggressive' : 'balanced';
+            if (aiModeLabel) aiModeLabel.textContent = e.target.checked ? 'Aggressive' : 'Balanced';
+            saveAIPref();
+        });
+    }
+
     if (twoPlayerCheckbox) {
         twoPlayerCheckbox.addEventListener('change', () => {
             twoPlayerMode = twoPlayerCheckbox.checked;
             localStorage.setItem('ludoTwoPlayerPref', JSON.stringify(twoPlayerMode));
             localStorage.removeItem('ludoGameState');
+            updateAITogglesState();
             initializeGame();
         });
     }
@@ -742,6 +917,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
     if (settingsClose) settingsClose.addEventListener('click', closeSettings);
     if (settingsBackdrop) settingsBackdrop.addEventListener('click', closeSettings);
+
+    if (singleWinCheckbox) {
+        singleWinCheckbox.addEventListener('change', (e) => {
+            singleWinMode = e.target.checked;
+            localStorage.setItem('ludoSingleWinPref', JSON.stringify(singleWinMode));
+        });
+    }
+
+    if (gameoverResetBtn) {
+        gameoverResetBtn.addEventListener('click', () => {
+            resetGame();
+        });
+    }
+
     installClose.addEventListener('click', () => hideInstallBanner());
     installButton.addEventListener('click', async () => {
         if (installedKnown) {
@@ -776,7 +965,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.key === 'Escape') closeSettings();
             return;
         }
-        if (e.key === 'Enter' || e.key === '5') {
+        if (gameoverModal && !gameoverModal.classList.contains('hidden')) {
+            if (e.key === 'Escape') hideGameOver();
+            return;
+        }
+        if (e.key === 'Enter' || e.key === ' ' || e.key === '5') {
+            if (e.key === ' ') e.preventDefault();
             handleRollDice();
         }
     });
@@ -817,6 +1011,39 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 twoPlayerMode = JSON.parse(prefRaw);
                 if (twoPlayerCheckbox) twoPlayerCheckbox.checked = twoPlayerMode;
+            } catch (e) { /* ignore */ }
+        }
+
+        const aiPrefRaw = localStorage.getItem('ludoAIPref');
+        if (aiPrefRaw !== null) {
+            try {
+                const config = JSON.parse(aiPrefRaw);
+                computerPlayers = config.players || [false, false, false, false];
+                aiMode = config.mode || 'balanced';
+                for (let i = 0; i < 4; i++) {
+                    if (aiCheckboxes[i]) aiCheckboxes[i].checked = computerPlayers[i];
+                }
+                if (aiModeCheckbox) {
+                    aiModeCheckbox.checked = (aiMode === 'aggressive');
+                    if (aiModeLabel) aiModeLabel.textContent = aiMode === 'aggressive' ? 'Aggressive' : 'Balanced';
+                }
+            } catch (e) { /* ignore */ }
+        }
+        updateAITogglesState();
+
+        const blockadePrefRaw = localStorage.getItem('ludoBlockadePref');
+        if (blockadePrefRaw !== null) {
+            try {
+                blockadeRuleEnabled = JSON.parse(blockadePrefRaw);
+                if (blockadeCheckbox) blockadeCheckbox.checked = blockadeRuleEnabled;
+            } catch (e) { /* ignore */ }
+        }
+
+        const singleWinPrefRaw = localStorage.getItem('ludoSingleWinPref');
+        if (singleWinPrefRaw !== null) {
+            try {
+                singleWinMode = JSON.parse(singleWinPrefRaw);
+                if (singleWinCheckbox) singleWinCheckbox.checked = singleWinMode;
             } catch (e) { /* ignore */ }
         }
 
