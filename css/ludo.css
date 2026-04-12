@@ -97,6 +97,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    z-index: 10;
+    order: 1;
 }
 
 .game-header__row {
@@ -196,6 +198,9 @@ body {
     padding: 6px 10px;
     border-radius: 12px;
     background: linear-gradient(180deg, rgba(30, 42, 56, 0.92) 0%, rgba(22, 32, 44, 0.95) 100%);
+    order: 3;
+    z-index: 5;
+    margin-bottom: 20px;
     box-shadow:
         0 1px 0 rgba(255, 255, 255, 0.08) inset,
         0 8px 24px rgba(0, 0, 0, 0.35),
@@ -233,6 +238,7 @@ body {
     width: 100%;
     flex: 1;
     min-height: 0;
+    order: 2;
 }
 
 .board-cell {
@@ -440,10 +446,10 @@ body {
     perspective-origin: 50% 40%;
     cursor: pointer;
     overflow: visible;
+    will-change: transform;
     filter:
         drop-shadow(0 18px 14px rgba(0, 0, 0, 0.38))
-        drop-shadow(0 6px 8px rgba(0, 0, 0, 0.22))
-        drop-shadow(0 0 1px rgba(255, 215, 120, 0.35));
+        drop-shadow(0 6px 8px rgba(0, 0, 0, 0.22));
 }
 
 .dice {
@@ -458,6 +464,8 @@ body {
 
 .dice.rolling {
     animation: roll 1.5s ease-out;
+    /* Disable heavy filters during high-speed animation to fix lag in lightboxes */
+    filter: none !important;
 }
 
 .face {
@@ -492,6 +500,7 @@ body {
         inset 0 0 0 4px rgba(212, 175, 55, 0.18),
         inset 0 0 20px rgba(255, 200, 70, 0.08),
         0 0 18px rgba(255, 190, 60, 0.2);
+    will-change: transform;
 }
 
 .dot {
@@ -593,6 +602,12 @@ body {
         justify-content: center;
         align-items: center;
         gap: 10px;
+        order: 3;
+    }
+    .game-hud {
+        order: 2;
+        margin-top: 0;
+        margin-bottom: 4px;
     }
     .board-cell, .controls {
         flex: none;
