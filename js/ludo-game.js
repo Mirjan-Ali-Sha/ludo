@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetBtn = document.getElementById('reset-btn');
     const muteBtn = document.getElementById('mute-btn');
     const installBanner = document.getElementById('install-banner');
+    const installBannerTitle = document.getElementById('install-banner-title');
     const installBannerText = document.getElementById('install-banner-text');
     const installButton = document.getElementById('install-button');
     const installClose = document.getElementById('install-close');
@@ -109,14 +110,52 @@ document.addEventListener('DOMContentLoaded', () => {
         updateInstallButtonState();
     }
 
-    function showInstallBanner(message = installMessage) {
+    function isGoodConnection() {
+        // @ts-ignore
+        const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if (!conn) return true;
+        if (conn.saveData) return false;
+        // Types that are considered "good" for automatic updates
+        const goodTypes = ['4g', 'wifi'];
+        return !conn.effectiveType || goodTypes.includes(conn.effectiveType);
+    }
+
+    function showInstallBanner(mode = 'install') {
         if (isStandaloneMode()) return;
-        installBannerText.textContent = message;
+        if (sessionStorage.getItem('ludo-banner-suppressed') === 'true' && mode !== 'update') return;
+
+        let title = 'Install Ludo Universe';
+        let message = installMessage;
+        let btnText = 'Install';
+
+        installButton.classList.remove('install-banner-action--update');
+
+        if (mode === 'open') {
+            title = 'Ludo Universe';
+            message = openMessage;
+            btnText = 'Open';
+        } else if (mode === 'update') {
+            title = 'Update Available';
+            message = 'A new version of Ludo Universe is ready with fresh features and improvements.';
+            btnText = 'Update Now';
+            installButton.classList.add('install-banner-action--update');
+        } else if (!deferredInstallPrompt) {
+            message = installFallbackMessage;
+        }
+
+        if (installBannerTitle) installBannerTitle.textContent = title;
+        if (installBannerText) installBannerText.textContent = message;
+        if (installButton) installButton.textContent = btnText;
+        
+        installButton.dataset.mode = mode;
         installBanner.hidden = false;
         requestAnimationFrame(() => installBanner.classList.add('show'));
     }
 
-    function hideInstallBanner() {
+    function hideInstallBanner(isManual = false) {
+        if (isManual) {
+            sessionStorage.setItem('ludo-banner-suppressed', 'true');
+        }
         installBanner.classList.remove('show');
         setTimeout(() => {
             if (!installBanner.classList.contains('show')) {
@@ -128,10 +167,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function scheduleInstallBanner(delay = 2800) {
         clearTimeout(installBannerTimer);
         installBannerTimer = setTimeout(() => {
-            const nextMessage = installedKnown
-                ? openMessage
-                : (deferredInstallPrompt ? installMessage : installFallbackMessage);
-            showInstallBanner(nextMessage);
+            if (installedKnown) {
+                showInstallBanner('open');
+            } else {
+                showInstallBanner('install');
+            }
         }, delay);
     }
 
@@ -1094,19 +1134,30 @@ document.addEventListener('DOMContentLoaded', () => {
         getBadgeBtn.addEventListener('click', downloadBadge);
     }
 
-    installClose.addEventListener('click', () => hideInstallBanner());
+    installClose.addEventListener('click', () => hideInstallBanner(installButton.dataset.mode !== 'update'));
     installButton.addEventListener('click', async () => {
-        if (installedKnown) {
+        const mode = installButton.dataset.mode;
+
+        if (mode === 'update') {
+            if (swRegistration && swRegistration.waiting) {
+                swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+            hideInstallBanner();
+            return;
+        }
+
+        if (mode === 'open') {
             const appUrl = new URL('./', window.location.href).href;
             const openedWindow = window.open(appUrl, '_blank');
             if (!openedWindow) {
                 window.location.href = appUrl;
             }
+            hideInstallBanner();
             return;
         }
 
         if (!deferredInstallPrompt) {
-            showInstallBanner(installFallbackMessage);
+            showInstallBanner('install');
             return;
         }
 
@@ -1117,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (outcome === 'accepted') {
             hideInstallBanner();
         } else {
-            showInstallBanner(installFallbackMessage);
+            showInstallBanner('install');
         }
     });
     canvas.addEventListener('click', handleCanvasClick);
@@ -1138,12 +1189,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    let swRegistration = null;
+
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('Service Worker: Registered'))
+                .then(reg => {
+                    swRegistration = reg;
+                    console.log('Service Worker: Registered');
+
+                    if (reg.waiting) {
+                        handleSWUpdate(reg);
+                    }
+
+                    reg.onupdatefound = () => {
+                        const newWorker = reg.installing;
+                        newWorker.onstatechange = () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                handleSWUpdate(reg);
+                            }
+                        };
+                    };
+                })
                 .catch(err => console.error('Service Worker: Registration Failed: ', err));
         });
+
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            window.location.reload();
+        });
+    }
+
+    function handleSWUpdate(reg) {
+        if (isGoodConnection()) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        } else {
+            showInstallBanner('update');
+        }
     }
 
     window.addEventListener('beforeinstallprompt', (event) => {

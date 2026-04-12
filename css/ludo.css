@@ -794,12 +794,12 @@ body {
     z-index: 150;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 15px 16px;
-    border-radius: 24px;
-    background: rgba(20, 29, 43, 0.92);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 18px 48px rgba(0,0,0,0.35);
+    gap: 20px;
+    padding: 16px 20px;
+    border-radius: 20px;
+    background: rgba(20, 29, 43, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 18px 48px rgba(0,0,0,0.45);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
     transform: translateY(140%);
@@ -812,6 +812,11 @@ body {
     opacity: 1;
     pointer-events: auto;
 }
+
+.install-banner-action--update {
+    background: linear-gradient(165deg, #2ecc71 0%, #27ae60 100%) !important;
+}
+
 .install-banner-copy {
     flex: 1;
     min-width: 0;
