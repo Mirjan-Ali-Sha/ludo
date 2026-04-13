@@ -516,6 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (diceBox) diceBox.style.cursor = 'pointer';
         gameMessageEl.textContent = 'Roll the dice to start!';
         handleResize();
+        drawEverything();
 
         if (computerPlayers[currentPlayerIndex]) {
             if (diceBox) diceBox.style.cursor = 'not-allowed';
@@ -548,10 +549,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadGame() {
-        const savedState = JSON.parse(localStorage.getItem('ludoGameState'));
-        if (savedState) {
+        try {
+            const savedRaw = localStorage.getItem('ludoGameState');
+            if (!savedRaw) return false;
+            
+            const savedState = JSON.parse(savedRaw);
+            if (!savedState || !Array.isArray(savedState.tokens) || savedState.tokens.length < 16) {
+                console.warn('Ludo: Saved state is invalid or incomplete. Initializing fresh game.');
+                return false;
+            }
+
             tokens = savedState.tokens;
-            currentPlayerIndex = savedState.currentPlayerIndex;
+            currentPlayerIndex = savedState.currentPlayerIndex !== undefined ? savedState.currentPlayerIndex : 0;
             playerRanks = savedState.playerRanks || [];
             twoPlayerMode = !!savedState.twoPlayerMode;
             if (twoPlayerCheckbox) twoPlayerCheckbox.checked = twoPlayerMode;
@@ -568,9 +577,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (diceBox) diceBox.style.cursor = 'pointer';
             
             handleResize();
+            drawEverything();
             return true;
+        } catch (error) {
+            console.error('Ludo: Failed to load game state:', error);
+            return false;
         }
-        return false;
     }
 
     function handleRollDice() {
