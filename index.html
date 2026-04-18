@@ -28,11 +28,17 @@
     <div class="game-wrapper hidden">
         <header class="game-header">
             <div class="game-header__row">
-                <h1 class="game-title" title="Ludo Universe">Ludo <span class="game-title__sub">Universe</span></h1>
+                <h1 id="main-game-title" class="game-title" title="Ludo Universe">Ludo <span class="game-title__sub">Universe</span></h1>
                 <div class="game-header__actions">
-                    <button type="button" id="mode-toggle-btn" class="icon-btn icon-btn--mode" title="Switch Game Mode" aria-label="Switch Game Mode">
-                        <span id="mode-text">Ludo</span>
-                    </button>
+                    <!-- Premium Mode Toggle Switch -->
+                    <label class="game-mode-toggle" title="Switch Game Mode">
+                        <input type="checkbox" id="mode-toggle-checkbox" class="game-mode-toggle__input" aria-label="Switch Game Mode">
+                        <div class="game-mode-toggle__track">
+                            <div class="game-mode-toggle__thumb"></div>
+                            <span class="game-mode-toggle__label ludo-label">🎲 Ludo</span>
+                            <span class="game-mode-toggle__label snake-label">🐍 Snake</span>
+                        </div>
+                    </label>
                     <button type="button" id="save-btn" class="icon-btn icon-btn--save" title="Save game" aria-label="Save game">Save</button>
                     <button type="button" id="settings-btn" class="icon-btn icon-btn--gear" title="Settings" aria-label="Open settings">
                         <span class="icon-btn__glyph" aria-hidden="true">⚙</span>

@@ -24,10 +24,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsModal = document.getElementById('settings-modal');
     const settingsClose = document.getElementById('settings-close');
     const settingsBackdrop = document.getElementById('settings-backdrop');
-    const modeToggleBtn = document.getElementById('mode-toggle-btn');
-    const modeText = document.getElementById('mode-text');
-    
+    const modeToggleCheckbox = document.getElementById('mode-toggle-checkbox');
+    const mainGameTitle = document.getElementById('main-game-title');
+
     let gameMode = 'ludo'; // 'ludo' or 'snake'
+
+    function updateGameTitle() {
+        if (mainGameTitle) {
+            if (gameMode === 'snake') {
+                mainGameTitle.innerHTML = 'Ludo <span class="game-title__sub">Universe</span>';
+            } else {
+                mainGameTitle.innerHTML = 'Ludo <span class="game-title__sub">Universe</span>';
+            }
+        }
+    }
     const aiCheckboxes = [
         document.getElementById('ai-player-0'),
         document.getElementById('ai-player-1'),
@@ -73,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function playSound(sound) {
         if (isMuted || Tone.context.state !== 'running') return;
-        switch(sound) {
+        switch (sound) {
             case 'roll': sounds.roll.triggerAttackRelease("8n"); break;
             case 'move': sounds.move.triggerAttackRelease("C5", "16n"); break;
             case 'capture': sounds.capture.triggerAttackRelease("G3", "8n"); break;
@@ -149,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (installBannerTitle) installBannerTitle.textContent = title;
         if (installBannerText) installBannerText.textContent = message;
         if (installButton) installButton.textContent = btnText;
-        
+
         installButton.dataset.mode = mode;
         installBanner.hidden = false;
         requestAnimationFrame(() => installBanner.classList.add('show'));
@@ -305,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = '#e0e0e0';
             ctx.font = 'bold 34px sans-serif';
             ctx.fillText(modeName, 540, 425);
-            
+
             ctx.fillStyle = '#ffffff';
             ctx.font = '38px sans-serif';
             ctx.fillText('Official Victory Certificate', 540, 475);
@@ -313,8 +323,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // 4. Match Summary
             ctx.fillStyle = '#bdc3c7';
             ctx.font = '30px sans-serif';
-            const dateStr = new Date().toLocaleDateString('en-US', { 
-                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+            const dateStr = new Date().toLocaleDateString('en-US', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
             });
             ctx.fillText(`Match played on ${dateStr}`, 540, 520);
 
@@ -328,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Single Player Win Mode
                 const winnerIdx = winners[0];
                 const winnerName = playerNames[winnerIdx] || DEFAULT_PLAYER_NAMES[winnerIdx];
-                
+
                 // Winner
                 ctx.fillStyle = '#f1c40f';
                 ctx.font = 'bold 58px sans-serif';
@@ -340,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.font = '36px sans-serif';
                 ctx.fillText('Remaining Players:', 540, y);
                 y += 50;
-                
+
                 ctx.fillStyle = '#bdc3c7';
                 ctx.font = '32px sans-serif';
                 remaining.forEach(p => {
@@ -359,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.font = 'bold 58px sans-serif';
                 ctx.fillText(`🥇 Winner: ${winnerName}`, 540, y);
                 y += 100;
-                
+
                 ctx.fillStyle = '#ecf0f1';
                 ctx.font = '38px sans-serif';
                 ctx.fillText(`🥈 Runner Up: ${loserName}`, 540, y);
@@ -453,9 +463,9 @@ document.addEventListener('DOMContentLoaded', () => {
         [{ x: 10.5, y: 10.5 }, { x: 13.5, y: 10.5 }, { x: 10.5, y: 13.5 }, { x: 13.5, y: 13.5 }],
         [{ x: 1.5, y: 10.5 }, { x: 4.5, y: 10.5 }, { x: 1.5, y: 13.5 }, { x: 4.5, y: 13.5 }]
     ];
-    
+
     const path = [
-        { x: 1, y: 6 }, { x: 2, y: 6 }, { x: 3, y: 6 }, { x: 4, y: 6 }, { x: 5, y: 6 }, 
+        { x: 1, y: 6 }, { x: 2, y: 6 }, { x: 3, y: 6 }, { x: 4, y: 6 }, { x: 5, y: 6 },
         { x: 6, y: 5 }, { x: 6, y: 4 }, { x: 6, y: 3 }, { x: 6, y: 2 }, { x: 6, y: 1 }, { x: 6, y: 0 },
         { x: 7, y: 0 }, { x: 8, y: 0 },
         { x: 8, y: 1 }, { x: 8, y: 2 }, { x: 8, y: 3 }, { x: 8, y: 4 }, { x: 8, y: 5 },
@@ -470,12 +480,12 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     const homePaths = [
-        [{x: 1, y: 7}, {x: 2, y: 7}, {x: 3, y: 7}, {x: 4, y: 7}, {x: 5, y: 7}, {x: 6, y: 7}],
-        [{x: 7, y: 1}, {x: 7, y: 2}, {x: 7, y: 3}, {x: 7, y: 4}, {x: 7, y: 5}, {x: 7, y: 6}],
-        [{x: 13, y: 7}, {x: 12, y: 7}, {x: 11, y: 7}, {x: 10, y: 7}, {x: 9, y: 7}, {x: 8, y: 7}],
-        [{x: 7, y: 13}, {x: 7, y: 12}, {x: 7, y: 11}, {x: 7, y: 10}, {x: 7, y: 9}, {x: 7, y: 8}]
+        [{ x: 1, y: 7 }, { x: 2, y: 7 }, { x: 3, y: 7 }, { x: 4, y: 7 }, { x: 5, y: 7 }, { x: 6, y: 7 }],
+        [{ x: 7, y: 1 }, { x: 7, y: 2 }, { x: 7, y: 3 }, { x: 7, y: 4 }, { x: 7, y: 5 }, { x: 7, y: 6 }],
+        [{ x: 13, y: 7 }, { x: 12, y: 7 }, { x: 11, y: 7 }, { x: 10, y: 7 }, { x: 9, y: 7 }, { x: 8, y: 7 }],
+        [{ x: 7, y: 13 }, { x: 7, y: 12 }, { x: 7, y: 11 }, { x: 7, y: 10 }, { x: 7, y: 9 }, { x: 7, y: 8 }]
     ];
-    
+
     const startOffsets = [0, 13, 26, 39];
     const safeZones = [0, 8, 13, 21, 26, 34, 39, 47];
 
@@ -566,7 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 1000);
         }
     }
-    
+
     function resetGame() {
         localStorage.removeItem('ludoGameState');
         hideGameOver();
@@ -585,7 +595,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isGameSaved = true;
         gameMessageEl.textContent = "Game Saved!";
         setTimeout(() => {
-            if(gameState === 'roll') gameMessageEl.textContent = 'Roll the dice!';
+            if (gameState === 'roll') gameMessageEl.textContent = 'Roll the dice!';
             else if (gameState === 'move') gameMessageEl.textContent = 'Click a highlighted token to move.';
         }, 2000);
     }
@@ -594,7 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const savedRaw = localStorage.getItem('ludoGameState');
             if (!savedRaw) return false;
-            
+
             const savedState = JSON.parse(savedRaw);
             if (!savedState || !Array.isArray(savedState.tokens)) {
                 console.warn('Ludo: Saved state is invalid or incomplete. Initializing fresh game.');
@@ -602,25 +612,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             gameMode = savedState.gameMode || 'ludo';
-            if (modeText) modeText.textContent = gameMode.charAt(0).toUpperCase() + gameMode.slice(1);
-            
+            updateGameTitle();
             tokens = savedState.tokens;
             currentPlayerIndex = savedState.currentPlayerIndex !== undefined ? savedState.currentPlayerIndex : 0;
             playerRanks = savedState.playerRanks || [];
             twoPlayerMode = !!savedState.twoPlayerMode;
             if (twoPlayerCheckbox) twoPlayerCheckbox.checked = twoPlayerMode;
-            
+
             fillAndShuffleDiceBag();
             gameState = 'roll';
             diceRoll = 0;
             isGameSaved = true;
             ensureCurrentPlayerIsActive();
-            
+
             updateTurnIndicator();
             diceEl.className = 'dice';
             gameMessageEl.textContent = 'Game Loaded. Roll the dice!';
             if (diceBox) diceBox.style.cursor = 'pointer';
-            
+
             handleResize();
             drawEverything();
             return true;
@@ -634,19 +643,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (gameState !== 'roll') return;
         captureMadeThisTurn = false;
         tokenFinishedThisTurn = false;
-        gameState = 'rolling'; 
+        gameState = 'rolling';
         if (diceBox) diceBox.style.cursor = 'not-allowed';
-        diceEl.className = 'dice rolling'; 
+        diceEl.className = 'dice rolling';
         playSound('roll');
         setTimeout(() => {
             if (diceBag.length === 0) fillAndShuffleDiceBag();
             diceRoll = diceBag.pop();
-            diceEl.className = 'dice'; 
+            diceEl.className = 'dice';
             diceEl.classList.add(`show-${diceRoll}`);
             checkForMovableTokens();
-        }, 1500); 
+        }, 1500);
     }
-    
+
     function switchPlayer() {
         let nextPlayer = (currentPlayerIndex + 1) % 4;
         for (let step = 0; step < 8; step++) {
@@ -666,7 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (diceBox) diceBox.style.cursor = 'pointer';
         updateTurnIndicator();
         gameMessageEl.textContent = 'Roll the dice!';
-        
+
         if (computerPlayers[currentPlayerIndex]) {
             if (diceBox) diceBox.style.cursor = 'not-allowed';
             setTimeout(() => {
@@ -715,7 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             gameMessageEl.textContent = `No valid moves.`;
-            setTimeout(switchPlayer, 1500); 
+            setTimeout(switchPlayer, 1500);
         }
     }
 
@@ -725,7 +734,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState = 'animating';
         movableTokens = [];
         gameMessageEl.textContent = 'Moving...';
-        
+
         const enterRoll = (gameMode === 'ludo' ? 6 : 1);
         if (token.status === 'home' && diceRoll === enterRoll) {
             token.status = 'active';
@@ -749,7 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function _bezAt(t, p0, cp1, cp2, p1) {
         const i = 1 - t;
-        return i*i*i*p0 + 3*i*i*t*cp1 + 3*i*t*t*cp2 + t*t*t*p1;
+        return i * i * i * p0 + 3 * i * i * t * cp1 + 3 * i * t * t * cp2 + t * t * t * p1;
     }
 
     // Compute the pixel path for a snake body (matches drawing code exactly)
@@ -760,15 +769,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const x1 = sp.x * cellSize, y1 = sp.y * cellSize;
         const x2 = ep.x * cellSize, y2 = ep.y * cellSize;
         const dx = x2 - x1, dy = y2 - y1;
-        const len = Math.sqrt(dx*dx + dy*dy);
-        const nx = -dy/len, ny = dx/len;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        const nx = -dy / len, ny = dx / len;
         const off1 = _getOffset(sIdx, eIdx, cellSize * 1.5);
         const off2 = _getOffset(eIdx, sIdx, cellSize * 1.5);
-        const wave = cellSize * 0.5 * ((sIdx*3 + eIdx*5) % 7 + 3) / 10;
-        const cp1x = x1 + dx*0.25 + off1 + nx*wave;
-        const cp1y = y1 + dy*0.25 + ny*wave;
-        const cp2x = x1 + dx*0.75 + off2 - nx*wave;
-        const cp2y = y1 + dy*0.75 - ny*wave;
+        const wave = cellSize * 0.5 * ((sIdx * 3 + eIdx * 5) % 7 + 3) / 10;
+        const cp1x = x1 + dx * 0.25 + off1 + nx * wave;
+        const cp1y = y1 + dy * 0.25 + ny * wave;
+        const cp2x = x1 + dx * 0.75 + off2 - nx * wave;
+        const cp2y = y1 + dy * 0.75 - ny * wave;
         // Sample points along the bezier
         const points = [];
         const steps = 40;
@@ -868,10 +877,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const a = (1 - progress) * 0.6;
                 ctx.globalAlpha = a;
                 ctx.strokeStyle = color; ctx.lineWidth = 3;
-                ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+                ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
                 ctx.globalAlpha = a * 0.4;
                 ctx.fillStyle = color;
-                ctx.beginPath(); ctx.arc(cx, cy, r*0.6, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2); ctx.fill();
                 ctx.globalAlpha = 1;
                 return progress < 1;
             }
@@ -1015,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ctx.lineWidth = cellSize * 0.1 * age;
                     ctx.beginPath();
                     ctx.moveTo(trailPositions[i].x, trailPositions[i].y);
-                    ctx.lineTo(trailPositions[i+1].x, trailPositions[i+1].y);
+                    ctx.lineTo(trailPositions[i + 1].x, trailPositions[i + 1].y);
                     ctx.stroke();
                 }
             }
@@ -1054,7 +1063,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             // Snake mode — teleport is now handled by animateTeleport in animateTokenMove
             // finalizeMove only handles win detection for snake mode
-            
+
             if (token.position === 99) {
                 token.status = 'finished';
                 tokenFinishedThisTurn = true;
@@ -1069,7 +1078,7 @@ document.addEventListener('DOMContentLoaded', () => {
             gameMessageEl.textContent = `${winnerName} finished!`;
             playSound('win');
         }
-        
+
         if (playerRanks.length >= ranksNeededToEndMatch()) {
             gameState = 'gameover';
             if (diceBox) diceBox.style.cursor = 'not-allowed';
@@ -1095,35 +1104,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         drawEverything();
     }
-    
+
     function checkForCapture(movedToken) {
         if (gameMode !== 'ludo') return; // No capture in Snake mode
         if (movedToken.status !== 'active' || movedToken.position < 0) return;
-        
+
         // FIX: Must check BEFORE the modulo calculation
         if (movedToken.position > 50) return;
-        
+
         const movedTokenGlobalPos = (movedToken.position + startOffsets[movedToken.player]) % 52;
-        
+
         if (safeZones.includes(movedTokenGlobalPos)) return;
-        
+
         tokens.forEach(token => {
-            if (token.player !== movedToken.player && 
-                token.status === 'active' && 
+            if (token.player !== movedToken.player &&
+                token.status === 'active' &&
                 token.position >= 0) {
-                
+
                 // FIX: Skip tokens in home path
                 if (token.position > 50) return;
-                
+
                 const opponentGlobalPos = (token.position + startOffsets[token.player]) % 52;
-                
+
                 if (movedTokenGlobalPos === opponentGlobalPos) {
                     let blockadeCount = 1;
                     if (blockadeRuleEnabled) {
-                        blockadeCount = tokens.filter(t => 
-                            t.player === token.player && 
-                            t.status === 'active' && 
-                            t.position <= 50 && 
+                        blockadeCount = tokens.filter(t =>
+                            t.player === token.player &&
+                            t.status === 'active' &&
+                            t.position <= 50 &&
                             ((t.position + startOffsets[t.player]) % 52 === opponentGlobalPos)
                         ).length;
                     }
@@ -1157,16 +1166,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Row color bands for visual interest
         const rowColors = [
-            ['#fff8e1','#fff3c4'], // row 0 (bottom, sq 1-10)
-            ['#e8f5e9','#c8e6c9'],
-            ['#e3f2fd','#bbdefb'],
-            ['#fce4ec','#f8bbd0'],
-            ['#f3e5f5','#e1bee7'],
-            ['#e0f7fa','#b2ebf2'],
-            ['#fff3e0','#ffe0b2'],
-            ['#e8eaf6','#c5cae9'],
-            ['#e0f2f1','#b2dfdb'],
-            ['#fbe9e7','#ffccbc'], // row 9 (top, sq 91-100)
+            ['#fff8e1', '#fff3c4'], // row 0 (bottom, sq 1-10)
+            ['#e8f5e9', '#c8e6c9'],
+            ['#e3f2fd', '#bbdefb'],
+            ['#fce4ec', '#f8bbd0'],
+            ['#f3e5f5', '#e1bee7'],
+            ['#e0f7fa', '#b2ebf2'],
+            ['#fff3e0', '#ffe0b2'],
+            ['#e8eaf6', '#c5cae9'],
+            ['#e0f2f1', '#b2dfdb'],
+            ['#fbe9e7', '#ffccbc'], // row 9 (top, sq 91-100)
         ];
 
         for (let i = 0; i < 100; i++) {
@@ -1214,7 +1223,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Bezier point evaluator
         const bezAt = (t, p0, cp1, cp2, p1) => {
             const i = 1 - t;
-            return i*i*i*p0 + 3*i*i*t*cp1 + 3*i*t*t*cp2 + t*t*t*p1;
+            return i * i * i * p0 + 3 * i * i * t * cp1 + 3 * i * t * t * cp2 + t * t * t * p1;
         };
 
         ctx.save();
@@ -1229,8 +1238,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const x2 = ep.x * cellSize, y2 = ep.y * cellSize;
 
             const dx = x2 - x1, dy = y2 - y1;
-            const len = Math.sqrt(dx*dx + dy*dy);
-            const ux = dx/len, uy = dy/len;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            const ux = dx / len, uy = dy / len;
             const railOff = cellSize * 0.22;
 
             // Shadow layer
@@ -1241,14 +1250,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Rails — wooden 3D gradient
             const railGrad = ctx.createLinearGradient(
-                x1 - uy*railOff, y1 + ux*railOff,
-                x1 + uy*railOff, y1 - ux*railOff
+                x1 - uy * railOff, y1 + ux * railOff,
+                x1 + uy * railOff, y1 - ux * railOff
             );
-            railGrad.addColorStop(0,   '#6d4c41');
+            railGrad.addColorStop(0, '#6d4c41');
             railGrad.addColorStop(0.3, '#a1887f');
             railGrad.addColorStop(0.5, '#d7ccc8');
             railGrad.addColorStop(0.7, '#a1887f');
-            railGrad.addColorStop(1,   '#4e342e');
+            railGrad.addColorStop(1, '#4e342e');
 
             ctx.lineWidth = cellSize * 0.13;
             ctx.lineCap = 'round';
@@ -1256,13 +1265,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Left rail
             ctx.beginPath();
-            ctx.moveTo(x1 - uy*railOff, y1 + ux*railOff);
-            ctx.lineTo(x2 - uy*railOff, y2 + ux*railOff);
+            ctx.moveTo(x1 - uy * railOff, y1 + ux * railOff);
+            ctx.lineTo(x2 - uy * railOff, y2 + ux * railOff);
             ctx.stroke();
             // Right rail
             ctx.beginPath();
-            ctx.moveTo(x1 + uy*railOff, y1 - ux*railOff);
-            ctx.lineTo(x2 + uy*railOff, y2 - ux*railOff);
+            ctx.moveTo(x1 + uy * railOff, y1 - ux * railOff);
+            ctx.lineTo(x2 + uy * railOff, y2 - ux * railOff);
             ctx.stroke();
 
             // Disable shadow for rungs (otherwise double-shadow)
@@ -1277,8 +1286,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Rung gradient (subtle 3D)
                 const rGrad = ctx.createLinearGradient(
-                    rx - uy*railOff, ry + ux*railOff,
-                    rx + uy*railOff, ry - ux*railOff
+                    rx - uy * railOff, ry + ux * railOff,
+                    rx + uy * railOff, ry - ux * railOff
                 );
                 rGrad.addColorStop(0, '#8d6e63');
                 rGrad.addColorStop(0.5, '#bcaaa4');
@@ -1286,8 +1295,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.strokeStyle = rGrad;
                 ctx.lineWidth = cellSize * 0.07;
                 ctx.beginPath();
-                ctx.moveTo(rx - uy*railOff, ry + ux*railOff);
-                ctx.lineTo(rx + uy*railOff, ry - ux*railOff);
+                ctx.moveTo(rx - uy * railOff, ry + ux * railOff);
+                ctx.lineTo(rx + uy * railOff, ry - ux * railOff);
                 ctx.stroke();
             }
 
@@ -1295,10 +1304,10 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.globalAlpha = 0.12;
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
-            ctx.setLineDash([cellSize*0.15, cellSize*0.25]);
+            ctx.setLineDash([cellSize * 0.15, cellSize * 0.25]);
             ctx.beginPath();
-            ctx.moveTo(x1 - uy*(railOff*0.5), y1 + ux*(railOff*0.5));
-            ctx.lineTo(x2 - uy*(railOff*0.5), y2 + ux*(railOff*0.5));
+            ctx.moveTo(x1 - uy * (railOff * 0.5), y1 + ux * (railOff * 0.5));
+            ctx.lineTo(x2 - uy * (railOff * 0.5), y2 + ux * (railOff * 0.5));
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.globalAlpha = 1;
@@ -1329,15 +1338,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Undulating S-curve control points
             const dx = x2 - x1, dy = y2 - y1;
-            const len = Math.sqrt(dx*dx + dy*dy);
-            const nx = -dy/len, ny = dx/len;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            const nx = -dy / len, ny = dx / len;
             const off1 = getOffset(sIdx, eIdx, cellSize * 1.5);
             const off2 = getOffset(eIdx, sIdx, cellSize * 1.5);
             const wave = cellSize * 0.5 * ((sIdx * 3 + eIdx * 5) % 7 + 3) / 10;
-            const cp1x = x1 + dx*0.25 + off1 + nx * wave;
-            const cp1y = y1 + dy*0.25 + ny * wave;
-            const cp2x = x1 + dx*0.75 + off2 - nx * wave;
-            const cp2y = y1 + dy*0.75 - ny * wave;
+            const cp1x = x1 + dx * 0.25 + off1 + nx * wave;
+            const cp1y = y1 + dy * 0.25 + ny * wave;
+            const cp2x = x1 + dx * 0.75 + off2 - nx * wave;
+            const cp2y = y1 + dy * 0.75 - ny * wave;
 
             // Shadow
             ctx.shadowColor = 'rgba(0,0,0,0.30)';
@@ -1361,11 +1370,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Per-segment cross gradient for 3D roundness
                 const segNx = -(py1 - py0), segNy = (px1 - px0);
-                const segLen = Math.sqrt(segNx*segNx + segNy*segNy) || 1;
-                const snx = segNx/segLen, sny = segNy/segLen;
+                const segLen = Math.sqrt(segNx * segNx + segNy * segNy) || 1;
+                const snx = segNx / segLen, sny = segNy / segLen;
                 const grd = ctx.createLinearGradient(
-                    px0 + snx*w*0.5, py0 + sny*w*0.5,
-                    px0 - snx*w*0.5, py0 - sny*w*0.5
+                    px0 + snx * w * 0.5, py0 + sny * w * 0.5,
+                    px0 - snx * w * 0.5, py0 - sny * w * 0.5
                 );
                 grd.addColorStop(0, pal.dark);
                 grd.addColorStop(0.25, pal.body);
@@ -1390,10 +1399,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const w = cellSize * (0.26 - 0.18 * t);
                 // Get perpendicular direction for the stripe
                 const dt = 0.01;
-                const tdx = bezAt(Math.min(t+dt,1), x1, cp1x, cp2x, x2) - bezAt(Math.max(t-dt,0), x1, cp1x, cp2x, x2);
-                const tdy = bezAt(Math.min(t+dt,1), y1, cp1y, cp2y, y2) - bezAt(Math.max(t-dt,0), y1, cp1y, cp2y, y2);
-                const tLen2 = Math.sqrt(tdx*tdx + tdy*tdy) || 1;
-                const pnx = -tdy/tLen2, pny = tdx/tLen2;
+                const tdx = bezAt(Math.min(t + dt, 1), x1, cp1x, cp2x, x2) - bezAt(Math.max(t - dt, 0), x1, cp1x, cp2x, x2);
+                const tdy = bezAt(Math.min(t + dt, 1), y1, cp1y, cp2y, y2) - bezAt(Math.max(t - dt, 0), y1, cp1y, cp2y, y2);
+                const tLen2 = Math.sqrt(tdx * tdx + tdy * tdy) || 1;
+                const pnx = -tdy / tLen2, pny = tdx / tLen2;
 
                 // Draw stripe band across the body
                 ctx.strokeStyle = pal.stripe;
@@ -1437,7 +1446,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.rotate(bodyAngle);
 
             // Head shape — round/oval, slightly wider than body
-            const hGrad = ctx.createRadialGradient(0, 0, headR*0.1, 0, 0, headR);
+            const hGrad = ctx.createRadialGradient(0, 0, headR * 0.1, 0, 0, headR);
             hGrad.addColorStop(0, pal.light);
             hGrad.addColorStop(0.4, pal.body);
             hGrad.addColorStop(1, pal.dark);
@@ -1459,22 +1468,22 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = '#fff';
             ctx.strokeStyle = '#333';
             ctx.lineWidth = Math.max(1, cellSize * 0.012);
-            ctx.beginPath(); ctx.arc(eyeX, -eyeY, eyeR, 0, Math.PI*2);
+            ctx.beginPath(); ctx.arc(eyeX, -eyeY, eyeR, 0, Math.PI * 2);
             ctx.fill(); ctx.stroke();
             // Right eye white
-            ctx.beginPath(); ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI*2);
+            ctx.beginPath(); ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2);
             ctx.fill(); ctx.stroke();
 
             // Big round pupils (looking forward/down)
             const pupilR = eyeR * 0.55;
             ctx.fillStyle = '#111';
-            ctx.beginPath(); ctx.arc(eyeX + eyeR*0.15, -eyeY + eyeR*0.1, pupilR, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(eyeX + eyeR*0.15, eyeY + eyeR*0.1, pupilR, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(eyeX + eyeR * 0.15, -eyeY + eyeR * 0.1, pupilR, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(eyeX + eyeR * 0.15, eyeY + eyeR * 0.1, pupilR, 0, Math.PI * 2); ctx.fill();
 
             // Eye glints (large, bright)
             ctx.fillStyle = '#fff';
-            ctx.beginPath(); ctx.arc(eyeX + eyeR*0.05, -eyeY - eyeR*0.15, eyeR*0.22, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(eyeX + eyeR*0.05, eyeY - eyeR*0.15, eyeR*0.22, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(eyeX + eyeR * 0.05, -eyeY - eyeR * 0.15, eyeR * 0.22, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(eyeX + eyeR * 0.05, eyeY - eyeR * 0.15, eyeR * 0.22, 0, Math.PI * 2); ctx.fill();
 
             // ── CUTE SMILE / MOUTH ──
             ctx.strokeStyle = pal.dark;
@@ -1486,8 +1495,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // ── NOSTRILS ──
             ctx.fillStyle = pal.dark;
-            ctx.beginPath(); ctx.arc(headR * 0.8, -headR*0.12, cellSize*0.015, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(headR * 0.8, headR*0.12, cellSize*0.015, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(headR * 0.8, -headR * 0.12, cellSize * 0.015, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(headR * 0.8, headR * 0.12, cellSize * 0.015, 0, Math.PI * 2); ctx.fill();
 
             // ── FORKED TONGUE (red, extending from mouth) ──
             const tLen = cellSize * 0.20;
@@ -1517,7 +1526,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const tailTipLen = cellSize * 0.06;
             ctx.fillStyle = pal.body;
             ctx.beginPath();
-            ctx.arc(x2 + Math.cos(tailAngle)*tailTipLen*0.5, y2 + Math.sin(tailAngle)*tailTipLen*0.5, cellSize * 0.03, 0, Math.PI*2);
+            ctx.arc(x2 + Math.cos(tailAngle) * tailTipLen * 0.5, y2 + Math.sin(tailAngle) * tailTipLen * 0.5, cellSize * 0.03, 0, Math.PI * 2);
             ctx.fill();
 
             // Re-enable shadow for next element
@@ -1534,22 +1543,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const homeSize = SQUARE_SIZE * 6;
         ctx.clearRect(0, 0, boardSize, boardSize);
         ctx.fillStyle = '#ecf0f1';
-        ctx.fillRect(0,0, boardSize, boardSize);
-        
+        ctx.fillRect(0, 0, boardSize, boardSize);
+
         for (let i = 0; i < 4; i++) {
             let x, y, grad;
             const corner = cornerPalette(i);
-            if (i === 0) { x = 0; y = 0; grad = ctx.createLinearGradient(0,0, homeSize, homeSize); }
+            if (i === 0) { x = 0; y = 0; grad = ctx.createLinearGradient(0, 0, homeSize, homeSize); }
             if (i === 1) { x = boardSize - homeSize; y = 0; grad = ctx.createLinearGradient(x + homeSize, 0, x, homeSize); }
             if (i === 2) { x = boardSize - homeSize; y = boardSize - homeSize; grad = ctx.createLinearGradient(x + homeSize, y + homeSize, x, y); }
             if (i === 3) { x = 0; y = boardSize - homeSize; grad = ctx.createLinearGradient(0, y + homeSize, homeSize, y); }
-            
+
             grad.addColorStop(0, corner.light);
             grad.addColorStop(1, corner.dark);
             ctx.fillStyle = grad;
             ctx.fillRect(x, y, homeSize, homeSize);
-            
-            let w_x, w_y, w_s = homeSize - 2*SQUARE_SIZE;
+
+            let w_x, w_y, w_s = homeSize - 2 * SQUARE_SIZE;
             if (i === 0) { w_x = SQUARE_SIZE; w_y = SQUARE_SIZE; }
             if (i === 1) { w_x = boardSize - homeSize + SQUARE_SIZE; w_y = SQUARE_SIZE; }
             if (i === 2) { w_x = boardSize - homeSize + SQUARE_SIZE; w_y = boardSize - homeSize + SQUARE_SIZE; }
@@ -1562,7 +1571,7 @@ document.addEventListener('DOMContentLoaded', () => {
         glossGradient.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
         glossGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.0)');
         glossGradient.addColorStop(1, 'rgba(255, 255, 255, 0.25)');
-        
+
         const drawGoldenStroke = (x, y, w, h) => {
             ctx.strokeStyle = '#D4AF37';
             ctx.shadowColor = '#FFD700';
@@ -1573,16 +1582,16 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.shadowBlur = 0;
         };
 
-        for(let i=0; i < path.length; i++) {
+        for (let i = 0; i < path.length; i++) {
             const pos = path[i];
             const px = pos.x * SQUARE_SIZE;
             const py = pos.y * SQUARE_SIZE;
-            
+
             let quadrantColor = '#FFFFFF';
-            if(pos.y <=5 && pos.x >=6 && pos.x <= 8) quadrantColor = cornerPalette(0).faint;
-            else if (pos.x >=9 && pos.y >=6 && pos.y <= 8) quadrantColor = cornerPalette(1).faint;
-            else if (pos.y >=9 && pos.x >=6 && pos.x <= 8) quadrantColor = cornerPalette(2).faint;
-            else if (pos.x <=5 && pos.y >=6 && pos.y <= 8) quadrantColor = cornerPalette(3).faint;
+            if (pos.y <= 5 && pos.x >= 6 && pos.x <= 8) quadrantColor = cornerPalette(0).faint;
+            else if (pos.x >= 9 && pos.y >= 6 && pos.y <= 8) quadrantColor = cornerPalette(1).faint;
+            else if (pos.y >= 9 && pos.x >= 6 && pos.x <= 8) quadrantColor = cornerPalette(2).faint;
+            else if (pos.x <= 5 && pos.y >= 6 && pos.y <= 8) quadrantColor = cornerPalette(3).faint;
 
             const grad = ctx.createLinearGradient(px, py, px + SQUARE_SIZE, py + SQUARE_SIZE);
             grad.addColorStop(0, 'white');
@@ -1592,7 +1601,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
             drawGoldenStroke(pos.x * SQUARE_SIZE, pos.y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE);
-            if(safeZones.includes(i)) {
+            if (safeZones.includes(i)) {
                 const starX = (pos.x + 0.5) * SQUARE_SIZE;
                 const starY = (pos.y + 0.5) * SQUARE_SIZE;
                 const starSize = SQUARE_SIZE * 0.6;
@@ -1613,7 +1622,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const hp = cornerPalette(i);
             for (let j = 0; j < 6; j++) {
                 const pos = homePaths[i][j];
-                const grad = ctx.createLinearGradient(pos.x*SQUARE_SIZE, pos.y*SQUARE_SIZE, (pos.x+1)*SQUARE_SIZE, (pos.y+1)*SQUARE_SIZE);
+                const grad = ctx.createLinearGradient(pos.x * SQUARE_SIZE, pos.y * SQUARE_SIZE, (pos.x + 1) * SQUARE_SIZE, (pos.y + 1) * SQUARE_SIZE);
                 grad.addColorStop(0, hp.light);
                 grad.addColorStop(1, hp.dark);
                 ctx.fillStyle = grad;
@@ -1639,7 +1648,7 @@ document.addEventListener('DOMContentLoaded', () => {
         grad2.addColorStop(0, c2.light); grad2.addColorStop(1, c2.dark);
         ctx.fillStyle = grad2;
         ctx.beginPath(); ctx.moveTo(topLeft.x, topLeft.y); ctx.lineTo(topRight.x, topRight.y); ctx.lineTo(center_x, center_y); ctx.closePath(); ctx.fill();
-        
+
         const grad3 = ctx.createLinearGradient(topRight.x, bottomRight.y, center_x, center_y);
         grad3.addColorStop(0, PLAYER_COLORS.p3.light); grad3.addColorStop(1, PLAYER_COLORS.p3.dark);
         ctx.fillStyle = grad3;
@@ -1650,7 +1659,7 @@ document.addEventListener('DOMContentLoaded', () => {
         grad4.addColorStop(0, c4.light); grad4.addColorStop(1, c4.dark);
         ctx.fillStyle = grad4;
         ctx.beginPath(); ctx.moveTo(bottomLeft.x, bottomLeft.y); ctx.lineTo(bottomRight.x, bottomRight.y); ctx.lineTo(center_x, center_y); ctx.closePath(); ctx.fill();
-        
+
         ctx.fillStyle = glossGradient;
         ctx.fillRect(0, 0, boardSize, boardSize);
     }
@@ -1670,7 +1679,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const pos = getSnakeGridPos(0); // Square 1
                     // Offset slightly so they are visible but "off center"
                     x = (pos.x - 0.25) * cellSize;
-                    y = pos.y * cellSize + (token.player - 1.5) * (cellSize * 0.2); 
+                    y = pos.y * cellSize + (token.player - 1.5) * (cellSize * 0.2);
                 }
             } else if (token.status === 'active') {
                 if (gameMode === 'ludo') {
@@ -1702,20 +1711,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     y = pos.y * cellSize;
                 }
             }
-            
+
             // Path animation override — render at pixel position along snake/ladder
             if (pathAnimOverride && pathAnimOverride.token === token) {
                 x = pathAnimOverride.x;
                 y = pathAnimOverride.y;
             }
-            
+
             if (x !== undefined) {
-                
+
                 let drawY = y;
                 if (movableTokens.includes(token)) {
                     drawY = y - TOKEN_RADIUS * 0.3;
                 }
-                
+
                 if (movableTokens.includes(token)) {
                     const pinRadius = TOKEN_RADIUS * 1.2;
                     const pinTipY = drawY + TOKEN_RADIUS * 1.9;
@@ -1742,7 +1751,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    
+
     function drawEverything() {
         if (gameMode === 'ludo') {
             drawBoard();
@@ -1759,11 +1768,11 @@ document.addEventListener('DOMContentLoaded', () => {
         turnIndicatorEl.style.backgroundColor = PLAYER_CSS_COLORS[currentPlayerIndex];
         syncDiceToActivePlayer();
     }
-    
+
     function checkForWinner() {
-        for(let i=0; i<4; i++) {
+        for (let i = 0; i < 4; i++) {
             if (!isPlayerActive(i)) continue;
-            if(!playerRanks.includes(i) && tokens.filter(t => t.player === i).every(t => t.status === 'finished')) return i;
+            if (!playerRanks.includes(i) && tokens.filter(t => t.player === i).every(t => t.status === 'finished')) return i;
         }
         return -1;
     }
@@ -1791,7 +1800,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     tokenX = (pos.x - 0.25) * cellSize;
                     tokenY = pos.y * cellSize + (token.player - 1.5) * (cellSize * 0.2);
                 }
-            } else if(token.status === 'active') {
+            } else if (token.status === 'active') {
                 if (gameMode === 'ludo') {
                     if (token.position > 50) {
                         const homePathPos = homePaths[token.player][token.position - 51];
@@ -1819,18 +1828,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (clickedToken) moveToken(clickedToken);
     }
-    
+
     let lastBoardSize = 0;
     function handleResize() {
         const controlsHeight = document.querySelector('.controls')?.offsetHeight || 0;
         const headerHeight = document.querySelector('.game-header')?.offsetHeight || 0;
-        
+
         const totalVerticalSpace = window.innerHeight;
-        const nonCanvasHeight = controlsHeight + headerHeight + 50; 
-        
+        const nonCanvasHeight = controlsHeight + headerHeight + 50;
+
         const availableHeight = totalVerticalSpace - nonCanvasHeight;
         const availableWidth = window.innerWidth * 0.95;
-        
+
         let newBoardSize;
         if (window.matchMedia("(min-width: 800px) and (min-height: 500px)").matches) {
             newBoardSize = Math.max(120, Math.min(window.innerHeight * 0.85, window.innerWidth * 0.6));
@@ -1841,7 +1850,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (newBoardSize === lastBoardSize) return;
         lastBoardSize = newBoardSize;
         boardSize = newBoardSize;
-        
+
         canvas.style.width = `${boardSize}px`;
         canvas.style.height = `${boardSize}px`;
         canvas.width = boardSize;
@@ -1930,10 +1939,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (modeToggleBtn) {
-        modeToggleBtn.addEventListener('click', () => {
-            gameMode = gameMode === 'ludo' ? 'snake' : 'ludo';
-            if (modeText) modeText.textContent = gameMode.charAt(0).toUpperCase() + gameMode.slice(1);
+    if (modeToggleCheckbox) {
+        modeToggleCheckbox.addEventListener('change', (e) => {
+            gameMode = e.target.checked ? 'snake' : 'ludo';
+            updateGameTitle();
             localStorage.setItem('ludoGameMode', gameMode);
             localStorage.removeItem('ludoGameState'); // Reset on mode switch
             initializeGame();
@@ -2002,7 +2011,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     canvas.addEventListener('click', handleCanvasClick);
     window.addEventListener('resize', handleResize);
-    
+
     window.addEventListener('keydown', (e) => {
         if (settingsModal && !settingsModal.classList.contains('hidden')) {
             if (e.key === 'Escape') closeSettings();
@@ -2017,7 +2026,7 @@ document.addEventListener('DOMContentLoaded', () => {
             handleRollDice();
         }
     });
-    
+
     let swRegistration = null;
 
     if ('serviceWorker' in navigator) {
@@ -2073,9 +2082,9 @@ document.addEventListener('DOMContentLoaded', () => {
     splashScreen.addEventListener('transitionend', () => {
         splashScreen.classList.add('hidden');
         document.body.style.overflow = 'auto';
-        
+
         gameWrapper.classList.remove('hidden');
-    
+
         const savedSoundSetting = JSON.parse(localStorage.getItem('ludoSoundSetting'));
         toggleMute(savedSoundSetting ? savedSoundSetting.muted : false);
 
@@ -2087,8 +2096,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (savedGameState && savedGameState.gameMode) {
             gameMode = savedGameState.gameMode;
         }
-        
-        if (modeText) modeText.textContent = gameMode.charAt(0).toUpperCase() + gameMode.slice(1);
+
+        if (modeToggleCheckbox) modeToggleCheckbox.checked = (gameMode === 'snake');
+        updateGameTitle();
 
         const prefRaw = localStorage.getItem('ludoTwoPlayerPref');
         if (prefRaw !== null) {
