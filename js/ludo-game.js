@@ -24,7 +24,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsModal = document.getElementById('settings-modal');
     const settingsClose = document.getElementById('settings-close');
     const settingsBackdrop = document.getElementById('settings-backdrop');
+    const modeToggleBtn = document.getElementById('mode-toggle-btn');
+    const modeText = document.getElementById('mode-text');
     
+    let gameMode = 'ludo'; // 'ludo' or 'snake'
     const aiCheckboxes = [
         document.getElementById('ai-player-0'),
         document.getElementById('ai-player-1'),
@@ -295,11 +298,17 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = '#f1c40f';
             ctx.font = 'bold 72px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('LUDO UNIVERSE', 540, 390);
+            ctx.fillText('LUDO UNIVERSE', 540, 380);
+
+            // Game Mode subtitle
+            const modeName = gameMode === 'snake' ? '🐍 Snake & Ladder' : '🎲 Ludo';
+            ctx.fillStyle = '#e0e0e0';
+            ctx.font = 'bold 34px sans-serif';
+            ctx.fillText(modeName, 540, 425);
             
             ctx.fillStyle = '#ffffff';
             ctx.font = '38px sans-serif';
-            ctx.fillText('Official Victory Certificate', 540, 440);
+            ctx.fillText('Official Victory Certificate', 540, 475);
 
             // 4. Match Summary
             ctx.fillStyle = '#bdc3c7';
@@ -382,7 +391,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 7. Download
             const link = document.createElement('a');
-            link.download = 'Ludo_Universe_Badge.png';
+            const badgeMode = gameMode === 'snake' ? 'Snake_Ladder' : 'Ludo';
+            link.download = `Ludo_Universe_${badgeMode}_Badge.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
         };
@@ -469,6 +479,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const startOffsets = [0, 13, 26, 39];
     const safeZones = [0, 8, 13, 21, 26, 34, 39, 47];
 
+    // --- Snake and Ladders Data ---
+    const SNAKE_LADDERS = {
+        ladders: { 4: 14, 9: 31, 20: 38, 28: 84, 40: 59, 51: 67, 71: 91 },
+        snakes: { 17: 7, 54: 34, 62: 19, 64: 60, 87: 24, 93: 73, 95: 75, 99: 78 }
+    };
+
+    function getSnakeGridPos(index) {
+        // index 0-99 (represents square 1-100)
+        const row = Math.floor(index / 10);
+        let col = index % 10;
+        // Boustrophedon (zig-zag) pattern
+        if (row % 2 !== 0) {
+            col = 9 - col;
+        }
+        return {
+            x: col + 0.5,
+            y: 9 - row + 0.5
+        };
+    }
+
     let diceBag = [];
     let tokens = [];
     let currentPlayerIndex = 0;
@@ -500,16 +530,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initializeGame() {
         tokens = [];
-        for (let i = 0; i < 4; i++) {
-            for (let j = 0; j < 4; j++) {
-                tokens.push({ player: i, id: j, position: -1, status: 'home' });
+        if (gameMode === 'ludo') {
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    tokens.push({ player: i, id: j, position: -1, status: 'home' });
+                }
+            }
+        } else {
+            // Snake and Ladders: 1 token per player
+            for (let i = 0; i < 4; i++) {
+                // Tokens start at 'home' (inactive)
+                tokens.push({ player: i, id: 0, position: -1, status: 'home' });
             }
         }
         fillAndShuffleDiceBag();
         currentPlayerIndex = 0;
         gameState = 'roll';
+        diceRoll = 0;
         isGameSaved = true;
         playerRanks = [];
+        captureMadeThisTurn = false;
+        tokenFinishedThisTurn = false;
         ensureCurrentPlayerIsActive();
         updateTurnIndicator();
         diceEl.className = 'dice';
@@ -537,7 +578,8 @@ document.addEventListener('DOMContentLoaded', () => {
             tokens: tokens,
             currentPlayerIndex: currentPlayerIndex,
             playerRanks: playerRanks,
-            twoPlayerMode: twoPlayerMode
+            twoPlayerMode: twoPlayerMode,
+            gameMode: gameMode
         };
         localStorage.setItem('ludoGameState', JSON.stringify(gameStateToSave));
         isGameSaved = true;
@@ -554,11 +596,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!savedRaw) return false;
             
             const savedState = JSON.parse(savedRaw);
-            if (!savedState || !Array.isArray(savedState.tokens) || savedState.tokens.length < 16) {
+            if (!savedState || !Array.isArray(savedState.tokens)) {
                 console.warn('Ludo: Saved state is invalid or incomplete. Initializing fresh game.');
                 return false;
             }
 
+            gameMode = savedState.gameMode || 'ludo';
+            if (modeText) modeText.textContent = gameMode.charAt(0).toUpperCase() + gameMode.slice(1);
+            
             tokens = savedState.tokens;
             currentPlayerIndex = savedState.currentPlayerIndex !== undefined ? savedState.currentPlayerIndex : 0;
             playerRanks = savedState.playerRanks || [];
@@ -636,8 +681,17 @@ document.addEventListener('DOMContentLoaded', () => {
         movableTokens = [];
         const playerTokens = tokens.filter(t => t.player === currentPlayerIndex);
         playerTokens.forEach(token => {
-            if ((token.status === 'home' && diceRoll === 6) || (token.status === 'active' && token.position + diceRoll <= 56)) {
-                movableTokens.push(token);
+            if (gameMode === 'ludo') {
+                if ((token.status === 'home' && diceRoll === 6) || (token.status === 'active' && token.position + diceRoll <= 56)) {
+                    movableTokens.push(token);
+                }
+            } else {
+                // Snake mode: 1 token, starts at -1 (home), needs a 1 to enter
+                if (token.status === 'home' && diceRoll === 1) {
+                    movableTokens.push(token);
+                } else if (token.status === 'active' && token.position + diceRoll <= 99) {
+                    movableTokens.push(token);
+                }
             }
         });
 
@@ -651,7 +705,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 drawEverything();
                 // AI picks best move
                 setTimeout(() => {
-                    const best = window.LudoAI.getBestMove(movableTokens, tokens, currentPlayerIndex, diceRoll, aiMode, blockadeRuleEnabled);
+                    const best = window.LudoAI.getBestMove(movableTokens, tokens, currentPlayerIndex, diceRoll, aiMode, blockadeRuleEnabled, gameMode);
                     moveToken(best || movableTokens[0]);
                 }, 800);
             } else {
@@ -671,7 +725,9 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState = 'animating';
         movableTokens = [];
         gameMessageEl.textContent = 'Moving...';
-        if (token.status === 'home' && diceRoll === 6) {
+        
+        const enterRoll = (gameMode === 'ludo' ? 6 : 1);
+        if (token.status === 'home' && diceRoll === enterRoll) {
             token.status = 'active';
             token.position = 0;
             drawEverything();
@@ -682,24 +738,329 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ── VISUAL EFFECTS SYSTEM ───────────────────────────────────
+    let activeEffects = []; // running VFX overlays
+    let pathAnimOverride = null; // {token, x, y} — overrides drawTokens position
+
+    // Helpers reused from drawSnakesAndLadders (must match exactly)
+    function _getOffset(s, e, factor) {
+        const seed = (s * 7 + e * 13) % 100;
+        return (seed / 100 - 0.5) * factor;
+    }
+    function _bezAt(t, p0, cp1, cp2, p1) {
+        const i = 1 - t;
+        return i*i*i*p0 + 3*i*i*t*cp1 + 3*i*t*t*cp2 + t*t*t*p1;
+    }
+
+    // Compute the pixel path for a snake body (matches drawing code exactly)
+    function getSnakeBodyPath(startSquare, endSquare) {
+        const cellSize = boardSize / 10;
+        const sIdx = startSquare - 1, eIdx = endSquare - 1;
+        const sp = getSnakeGridPos(sIdx), ep = getSnakeGridPos(eIdx);
+        const x1 = sp.x * cellSize, y1 = sp.y * cellSize;
+        const x2 = ep.x * cellSize, y2 = ep.y * cellSize;
+        const dx = x2 - x1, dy = y2 - y1;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        const nx = -dy/len, ny = dx/len;
+        const off1 = _getOffset(sIdx, eIdx, cellSize * 1.5);
+        const off2 = _getOffset(eIdx, sIdx, cellSize * 1.5);
+        const wave = cellSize * 0.5 * ((sIdx*3 + eIdx*5) % 7 + 3) / 10;
+        const cp1x = x1 + dx*0.25 + off1 + nx*wave;
+        const cp1y = y1 + dy*0.25 + ny*wave;
+        const cp2x = x1 + dx*0.75 + off2 - nx*wave;
+        const cp2y = y1 + dy*0.75 - ny*wave;
+        // Sample points along the bezier
+        const points = [];
+        const steps = 40;
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            points.push({
+                x: _bezAt(t, x1, cp1x, cp2x, x2),
+                y: _bezAt(t, y1, cp1y, cp2y, y2)
+            });
+        }
+        return points;
+    }
+
+    // Compute the pixel path for a ladder (straight line along rail)
+    function getLadderPath(startSquare, endSquare) {
+        const cellSize = boardSize / 10;
+        const sIdx = startSquare - 1, eIdx = endSquare - 1;
+        const sp = getSnakeGridPos(sIdx), ep = getSnakeGridPos(eIdx);
+        const x1 = sp.x * cellSize, y1 = sp.y * cellSize;
+        const x2 = ep.x * cellSize, y2 = ep.y * cellSize;
+        const points = [];
+        const steps = 30;
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            points.push({
+                x: x1 + (x2 - x1) * t,
+                y: y1 + (y2 - y1) * t
+            });
+        }
+        return points;
+    }
+
+    function spawnParticleBurst(cx, cy, color, count) {
+        const particles = [];
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+            const speed = 1.5 + Math.random() * 3;
+            particles.push({
+                x: cx, y: cy,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                r: 2 + Math.random() * 4,
+                alpha: 1, color
+            });
+        }
+        const startTime = Date.now();
+        activeEffects.push({
+            type: 'particles', startTime, duration: 900, particles,
+            draw(ctx) {
+                const progress = Math.min((Date.now() - this.startTime) / this.duration, 1);
+                this.particles.forEach(p => {
+                    p.x += p.vx; p.y += p.vy; p.vy += 0.08;
+                    p.alpha = 1 - progress; p.r *= 0.98;
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.globalAlpha = 1;
+                return progress < 1;
+            }
+        });
+    }
+
+    function spawnFloatingText(cx, cy, text, color, fontSize) {
+        const startTime = Date.now();
+        activeEffects.push({
+            type: 'text', startTime, duration: 1400,
+            draw(ctx) {
+                const progress = Math.min((Date.now() - this.startTime) / this.duration, 1);
+                const scale = 0.3 + 0.7 * Math.min(progress / 0.2, 1);
+                const fadeOut = progress > 0.6 ? 1 - (progress - 0.6) / 0.4 : 1;
+                ctx.save();
+                ctx.globalAlpha = fadeOut;
+                ctx.translate(cx, cy - progress * 40);
+                ctx.scale(scale, scale);
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.font = `bold ${fontSize}px "Inter", "Segoe UI", sans-serif`;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(text, 2, 2);
+                ctx.fillStyle = color;
+                ctx.fillText(text, 0, 0);
+                ctx.restore();
+                return progress < 1;
+            }
+        });
+    }
+
+    function spawnGlowRing(cx, cy, color) {
+        const startTime = Date.now();
+        activeEffects.push({
+            type: 'glow', startTime, duration: 800,
+            draw(ctx) {
+                const progress = Math.min((Date.now() - this.startTime) / this.duration, 1);
+                const r = 8 + progress * 25;
+                const a = (1 - progress) * 0.6;
+                ctx.globalAlpha = a;
+                ctx.strokeStyle = color; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+                ctx.globalAlpha = a * 0.4;
+                ctx.fillStyle = color;
+                ctx.beginPath(); ctx.arc(cx, cy, r*0.6, 0, Math.PI*2); ctx.fill();
+                ctx.globalAlpha = 1;
+                return progress < 1;
+            }
+        });
+    }
+
+    function startScreenShake(intensity, duration) {
+        const startTime = Date.now();
+        activeEffects.push({
+            type: 'shake', startTime, duration, intensity,
+            draw() { return Date.now() - this.startTime < this.duration; },
+            getOffset() {
+                const decay = 1 - Math.min((Date.now() - this.startTime) / this.duration, 1);
+                return {
+                    x: (Math.random() - 0.5) * this.intensity * decay * 2,
+                    y: (Math.random() - 0.5) * this.intensity * decay * 2
+                };
+            }
+        });
+    }
+
+    function drawEffectsOverlay() {
+        if (activeEffects.length === 0) return;
+        activeEffects = activeEffects.filter(fx => fx.draw(ctx));
+        if (activeEffects.length > 0) {
+            requestAnimationFrame(() => {
+                drawEverything();
+                drawEffectsOverlay();
+            });
+        }
+    }
+
+    function getTokenScreenPos(token) {
+        const cellSize = boardSize / 10;
+        if (gameMode === 'snake' && token.status === 'active') {
+            const pos = getSnakeGridPos(token.position);
+            return { x: pos.x * cellSize, y: pos.y * cellSize };
+        }
+        return { x: boardSize / 2, y: boardSize / 2 };
+    }
+
+    // ── ANIMATION FUNCTIONS ──────────────────────────────────────
+
     function animateTokenMove(token, stepsLeft) {
         if (stepsLeft <= 0) {
+            if (gameMode === 'snake') {
+                const square = token.position + 1;
+                const ladderDest = SNAKE_LADDERS.ladders[square];
+                const snakeDest = SNAKE_LADDERS.snakes[square];
+                if (ladderDest) {
+                    // Animate climbing the ladder visually
+                    gameMessageEl.textContent = '🪜 Ladder! Climbing up...';
+                    playSound('finish');
+                    const pos = getTokenScreenPos(token);
+                    spawnParticleBurst(pos.x, pos.y, '#ffd700', 20);
+                    spawnFloatingText(pos.x, pos.y - 15, '🪜 LADDER!', '#ffd700', Math.round(boardSize / 14));
+                    spawnGlowRing(pos.x, pos.y, '#ffd700');
+                    drawEffectsOverlay();
+                    setTimeout(() => {
+                        animateAlongPath(token, getLadderPath(square, ladderDest), 'ladder', ladderDest - 1, () => finalizeMove(token));
+                    }, 450);
+                    return;
+                } else if (snakeDest) {
+                    // Animate sliding down the snake body
+                    gameMessageEl.textContent = '🐍 Snake! Sliding down...';
+                    playSound('capture');
+                    const pos = getTokenScreenPos(token);
+                    spawnParticleBurst(pos.x, pos.y, '#ff1744', 20);
+                    spawnFloatingText(pos.x, pos.y - 15, '🐍 SNAKE!', '#ff1744', Math.round(boardSize / 14));
+                    spawnGlowRing(pos.x, pos.y, '#ff1744');
+                    startScreenShake(4, 500);
+                    drawEffectsOverlay();
+                    setTimeout(() => {
+                        animateAlongPath(token, getSnakeBodyPath(square, snakeDest), 'snake', snakeDest - 1, () => finalizeMove(token));
+                    }, 550);
+                    return;
+                }
+            }
             finalizeMove(token);
             return;
         }
         token.position++;
         playSound('move');
         drawEverything();
-        setTimeout(() => animateTokenMove(token, stepsLeft - 1), 350);
+        const stepDelay = gameMode === 'snake' ? 200 : 350;
+        setTimeout(() => animateTokenMove(token, stepsLeft - 1), stepDelay);
+    }
+
+    // Animate token along a pixel path (snake body curve or ladder rail)
+    function animateAlongPath(token, pathPoints, type, destPosition, callback) {
+        const glowColor = type === 'ladder' ? '#ffd700' : '#ff1744';
+        const trailColor = type === 'ladder' ? '#fff9c4' : '#ff8a80';
+        const trailPositions = [];
+        let stepIdx = 0;
+        const totalSteps = pathPoints.length;
+        const stepDelay = type === 'ladder' ? 45 : 35; // Snakes are slightly faster (slithery)
+
+        function doStep() {
+            if (stepIdx >= totalSteps) {
+                // Arrived — set final position, clear override
+                pathAnimOverride = null;
+                token.position = destPosition;
+                drawEverything();
+                // Arrival effects
+                const dest = getTokenScreenPos(token);
+                if (type === 'ladder') {
+                    spawnParticleBurst(dest.x, dest.y, '#4caf50', 18);
+                    spawnFloatingText(dest.x, dest.y - 10, '✨', '#ffd700', Math.round(boardSize / 18));
+                } else {
+                    spawnParticleBurst(dest.x, dest.y, '#ff5722', 18);
+                }
+                spawnGlowRing(dest.x, dest.y, glowColor);
+                drawEffectsOverlay();
+                playSound(type === 'ladder' ? 'finish' : 'capture');
+                setTimeout(callback, 300);
+                return;
+            }
+
+            const pt = pathPoints[stepIdx];
+            trailPositions.push({ x: pt.x, y: pt.y });
+
+            // Set override so drawTokens renders this token at pt.x, pt.y
+            pathAnimOverride = { token, x: pt.x, y: pt.y };
+
+            // Play step sound every few frames
+            if (stepIdx % 4 === 0) playSound('move');
+
+            drawEverything();
+
+            // Draw glowing trail over the board
+            const cellSize = boardSize / 10;
+            ctx.save();
+            if (trailPositions.length > 1) {
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                const maxTrail = Math.min(trailPositions.length, 15);
+                for (let i = trailPositions.length - maxTrail; i < trailPositions.length - 1; i++) {
+                    const age = (i - (trailPositions.length - maxTrail)) / maxTrail;
+                    ctx.globalAlpha = age * 0.55;
+                    ctx.strokeStyle = glowColor;
+                    ctx.lineWidth = cellSize * 0.1 * age;
+                    ctx.beginPath();
+                    ctx.moveTo(trailPositions[i].x, trailPositions[i].y);
+                    ctx.lineTo(trailPositions[i+1].x, trailPositions[i+1].y);
+                    ctx.stroke();
+                }
+            }
+            // Glow halo on the token
+            ctx.globalAlpha = 0.35;
+            const grad = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, cellSize * 0.3);
+            grad.addColorStop(0, glowColor);
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, cellSize * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.restore();
+
+            // Tiny sparkle particles along the path
+            if (stepIdx % 5 === 0) {
+                spawnParticleBurst(pt.x, pt.y, trailColor, 3);
+            }
+            drawEffectsOverlay();
+
+            stepIdx++;
+            setTimeout(doStep, stepDelay);
+        }
+        doStep();
     }
 
     function finalizeMove(token) {
-        if (token.position === 56) {
-            token.status = 'finished';
-            tokenFinishedThisTurn = true;
-            playSound('finish');
+        if (gameMode === 'ludo') {
+            if (token.position === 56) {
+                token.status = 'finished';
+                tokenFinishedThisTurn = true;
+                playSound('finish');
+            }
+            checkForCapture(token);
+        } else {
+            // Snake mode — teleport is now handled by animateTeleport in animateTokenMove
+            // finalizeMove only handles win detection for snake mode
+            
+            if (token.position === 99) {
+                token.status = 'finished';
+                tokenFinishedThisTurn = true;
+                playSound('finish');
+            }
         }
-        checkForCapture(token);
         const winner = checkForWinner();
 
         if (winner !== -1) {
@@ -713,26 +1074,30 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState = 'gameover';
             if (diceBox) diceBox.style.cursor = 'not-allowed';
             showGameOver();
-        } else if (diceRoll === 6 || captureMadeThisTurn || tokenFinishedThisTurn) {
-            gameState = 'roll';
-            if (diceBox) diceBox.style.cursor = 'pointer';
-            if (tokenFinishedThisTurn) gameMessageEl.textContent = 'Token is home! Roll again.';
-            else if (captureMadeThisTurn) gameMessageEl.textContent = 'You captured a token! Roll again.';
-            else gameMessageEl.textContent = 'You rolled a 6! Roll again.';
-
-            if (computerPlayers[currentPlayerIndex]) {
-                if (diceBox) diceBox.style.cursor = 'not-allowed';
-                setTimeout(() => {
-                    if (gameState === 'roll') handleRollDice();
-                }, 800);
-            }
         } else {
-            switchPlayer();
+            const reRollVal = (gameMode === 'ludo' ? 6 : 1);
+            if (diceRoll === reRollVal || captureMadeThisTurn || tokenFinishedThisTurn) {
+                gameState = 'roll';
+                if (diceBox) diceBox.style.cursor = 'pointer';
+                if (tokenFinishedThisTurn) gameMessageEl.textContent = 'Token is home! Roll again.';
+                else if (captureMadeThisTurn) gameMessageEl.textContent = 'You captured a token! Roll again.';
+                else gameMessageEl.textContent = `You rolled a ${reRollVal}! Roll again.`;
+
+                if (computerPlayers[currentPlayerIndex]) {
+                    if (diceBox) diceBox.style.cursor = 'not-allowed';
+                    setTimeout(() => {
+                        if (gameState === 'roll') handleRollDice();
+                    }, 800);
+                }
+            } else {
+                switchPlayer();
+            }
         }
         drawEverything();
     }
     
     function checkForCapture(movedToken) {
+        if (gameMode !== 'ludo') return; // No capture in Snake mode
         if (movedToken.status !== 'active' || movedToken.position < 0) return;
         
         // FIX: Must check BEFORE the modulo calculation
@@ -777,6 +1142,393 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+
+    function drawSnakeBoard() {
+        const cellSize = boardSize / 10;
+        ctx.clearRect(0, 0, boardSize, boardSize);
+
+        // Background gradient
+        const bgGrad = ctx.createLinearGradient(0, 0, boardSize, boardSize);
+        bgGrad.addColorStop(0, '#f8f9fa');
+        bgGrad.addColorStop(0.5, '#e9ecef');
+        bgGrad.addColorStop(1, '#dee2e6');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, boardSize, boardSize);
+
+        // Row color bands for visual interest
+        const rowColors = [
+            ['#fff8e1','#fff3c4'], // row 0 (bottom, sq 1-10)
+            ['#e8f5e9','#c8e6c9'],
+            ['#e3f2fd','#bbdefb'],
+            ['#fce4ec','#f8bbd0'],
+            ['#f3e5f5','#e1bee7'],
+            ['#e0f7fa','#b2ebf2'],
+            ['#fff3e0','#ffe0b2'],
+            ['#e8eaf6','#c5cae9'],
+            ['#e0f2f1','#b2dfdb'],
+            ['#fbe9e7','#ffccbc'], // row 9 (top, sq 91-100)
+        ];
+
+        for (let i = 0; i < 100; i++) {
+            const pos = getSnakeGridPos(i);
+            const px = (pos.x - 0.5) * cellSize;
+            const py = (pos.y - 0.5) * cellSize;
+            const row = Math.floor(i / 10);
+            const isDark = (row + (i % 10)) % 2 === 0;
+
+            const colors = rowColors[row];
+            const grad = ctx.createLinearGradient(px, py, px + cellSize, py + cellSize);
+            grad.addColorStop(0, isDark ? colors[0] : colors[1]);
+            grad.addColorStop(1, isDark ? colors[1] : colors[0]);
+            ctx.fillStyle = grad;
+            ctx.fillRect(px, py, cellSize, cellSize);
+
+            // Inner border
+            ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(px + 0.5, py + 0.5, cellSize - 1, cellSize - 1);
+
+            // Square number — high contrast, readable
+            const fontSize = cellSize * 0.30;
+            ctx.font = `800 ${fontSize}px "Inter", "Segoe UI", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            // Text shadow for legibility
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.fillText(i + 1, px + cellSize / 2 + 1, py + cellSize / 2 + 1);
+            ctx.fillStyle = 'rgba(0, 0, 40, 0.55)';
+            ctx.fillText(i + 1, px + cellSize / 2, py + cellSize / 2);
+        }
+
+        // Draw Snakes and Ladders on top
+        drawSnakesAndLadders(cellSize);
+    }
+
+    function drawSnakesAndLadders(cellSize) {
+        // Deterministic offset — stable across redraws
+        const getOffset = (s, e, factor) => {
+            const seed = (s * 7 + e * 13) % 100;
+            return (seed / 100 - 0.5) * factor;
+        };
+
+        // Bezier point evaluator
+        const bezAt = (t, p0, cp1, cp2, p1) => {
+            const i = 1 - t;
+            return i*i*i*p0 + 3*i*i*t*cp1 + 3*i*t*t*cp2 + t*t*t*p1;
+        };
+
+        ctx.save();
+
+        // ── LADDERS ──────────────────────────────────────────────
+        Object.entries(SNAKE_LADDERS.ladders).forEach(([start, end]) => {
+            const sIdx = parseInt(start) - 1;
+            const eIdx = parseInt(end) - 1;
+            const sp = getSnakeGridPos(sIdx);
+            const ep = getSnakeGridPos(eIdx);
+            const x1 = sp.x * cellSize, y1 = sp.y * cellSize;
+            const x2 = ep.x * cellSize, y2 = ep.y * cellSize;
+
+            const dx = x2 - x1, dy = y2 - y1;
+            const len = Math.sqrt(dx*dx + dy*dy);
+            const ux = dx/len, uy = dy/len;
+            const railOff = cellSize * 0.22;
+
+            // Shadow layer
+            ctx.shadowColor = 'rgba(0,0,0,0.35)';
+            ctx.shadowBlur = cellSize * 0.2;
+            ctx.shadowOffsetX = cellSize * 0.1;
+            ctx.shadowOffsetY = cellSize * 0.1;
+
+            // Rails — wooden 3D gradient
+            const railGrad = ctx.createLinearGradient(
+                x1 - uy*railOff, y1 + ux*railOff,
+                x1 + uy*railOff, y1 - ux*railOff
+            );
+            railGrad.addColorStop(0,   '#6d4c41');
+            railGrad.addColorStop(0.3, '#a1887f');
+            railGrad.addColorStop(0.5, '#d7ccc8');
+            railGrad.addColorStop(0.7, '#a1887f');
+            railGrad.addColorStop(1,   '#4e342e');
+
+            ctx.lineWidth = cellSize * 0.13;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = railGrad;
+
+            // Left rail
+            ctx.beginPath();
+            ctx.moveTo(x1 - uy*railOff, y1 + ux*railOff);
+            ctx.lineTo(x2 - uy*railOff, y2 + ux*railOff);
+            ctx.stroke();
+            // Right rail
+            ctx.beginPath();
+            ctx.moveTo(x1 + uy*railOff, y1 - ux*railOff);
+            ctx.lineTo(x2 + uy*railOff, y2 - ux*railOff);
+            ctx.stroke();
+
+            // Disable shadow for rungs (otherwise double-shadow)
+            ctx.shadowColor = 'transparent';
+
+            // Rungs
+            const rungs = Math.max(3, Math.floor(len / (cellSize * 0.35)));
+            for (let i = 1; i < rungs; i++) {
+                const t = i / rungs;
+                const rx = x1 + dx * t;
+                const ry = y1 + dy * t;
+
+                // Rung gradient (subtle 3D)
+                const rGrad = ctx.createLinearGradient(
+                    rx - uy*railOff, ry + ux*railOff,
+                    rx + uy*railOff, ry - ux*railOff
+                );
+                rGrad.addColorStop(0, '#8d6e63');
+                rGrad.addColorStop(0.5, '#bcaaa4');
+                rGrad.addColorStop(1, '#6d4c41');
+                ctx.strokeStyle = rGrad;
+                ctx.lineWidth = cellSize * 0.07;
+                ctx.beginPath();
+                ctx.moveTo(rx - uy*railOff, ry + ux*railOff);
+                ctx.lineTo(rx + uy*railOff, ry - ux*railOff);
+                ctx.stroke();
+            }
+
+            // Wood grain highlights along rails
+            ctx.globalAlpha = 0.12;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([cellSize*0.15, cellSize*0.25]);
+            ctx.beginPath();
+            ctx.moveTo(x1 - uy*(railOff*0.5), y1 + ux*(railOff*0.5));
+            ctx.lineTo(x2 - uy*(railOff*0.5), y2 + ux*(railOff*0.5));
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.globalAlpha = 1;
+        });
+
+        // ── SNAKES (cartoon-style, colorful) ─────────────────────
+        // Vibrant color palettes — each snake gets a unique color like the reference
+        const snakePalettes = [
+            { body: '#4caf50', stripe: '#81c784', dark: '#2e7d32', light: '#c8e6c9' }, // green
+            { body: '#ff9800', stripe: '#ffb74d', dark: '#e65100', light: '#ffe0b2' }, // orange
+            { body: '#e91e63', stripe: '#f06292', dark: '#880e4f', light: '#f8bbd0' }, // pink
+            { body: '#2196f3', stripe: '#64b5f6', dark: '#0d47a1', light: '#bbdefb' }, // blue
+            { body: '#9c27b0', stripe: '#ba68c8', dark: '#4a148c', light: '#e1bee7' }, // purple
+            { body: '#f44336', stripe: '#ef9a9a', dark: '#b71c1c', light: '#ffcdd2' }, // red
+            { body: '#ff5722', stripe: '#ff8a65', dark: '#bf360c', light: '#ffccbc' }, // deep orange
+            { body: '#009688', stripe: '#4db6ac', dark: '#004d40', light: '#b2dfdb' }, // teal
+        ];
+        let snakeIdx = 0;
+        Object.entries(SNAKE_LADDERS.snakes).forEach(([start, end]) => {
+            const pal = snakePalettes[snakeIdx % snakePalettes.length];
+            snakeIdx++;
+            const sIdx = parseInt(start) - 1;
+            const eIdx = parseInt(end) - 1;
+            const sp = getSnakeGridPos(sIdx);
+            const ep = getSnakeGridPos(eIdx);
+            const x1 = sp.x * cellSize, y1 = sp.y * cellSize;
+            const x2 = ep.x * cellSize, y2 = ep.y * cellSize;
+
+            // Undulating S-curve control points
+            const dx = x2 - x1, dy = y2 - y1;
+            const len = Math.sqrt(dx*dx + dy*dy);
+            const nx = -dy/len, ny = dx/len;
+            const off1 = getOffset(sIdx, eIdx, cellSize * 1.5);
+            const off2 = getOffset(eIdx, sIdx, cellSize * 1.5);
+            const wave = cellSize * 0.5 * ((sIdx * 3 + eIdx * 5) % 7 + 3) / 10;
+            const cp1x = x1 + dx*0.25 + off1 + nx * wave;
+            const cp1y = y1 + dy*0.25 + ny * wave;
+            const cp2x = x1 + dx*0.75 + off2 - nx * wave;
+            const cp2y = y1 + dy*0.75 - ny * wave;
+
+            // Shadow
+            ctx.shadowColor = 'rgba(0,0,0,0.30)';
+            ctx.shadowBlur = cellSize * 0.18;
+            ctx.shadowOffsetX = cellSize * 0.06;
+            ctx.shadowOffsetY = cellSize * 0.06;
+
+            // ── BODY: thick, tapered, with per-segment 3D shading ──
+            const segs = 28;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            for (let i = 0; i < segs; i++) {
+                const t0 = i / segs, t1 = (i + 1) / segs;
+                const tMid = (t0 + t1) / 2;
+                // Thick at head, thin at tail
+                const w = cellSize * (0.26 - 0.18 * tMid);
+                const px0 = bezAt(t0, x1, cp1x, cp2x, x2);
+                const py0 = bezAt(t0, y1, cp1y, cp2y, y2);
+                const px1 = bezAt(t1, x1, cp1x, cp2x, x2);
+                const py1 = bezAt(t1, y1, cp1y, cp2y, y2);
+
+                // Per-segment cross gradient for 3D roundness
+                const segNx = -(py1 - py0), segNy = (px1 - px0);
+                const segLen = Math.sqrt(segNx*segNx + segNy*segNy) || 1;
+                const snx = segNx/segLen, sny = segNy/segLen;
+                const grd = ctx.createLinearGradient(
+                    px0 + snx*w*0.5, py0 + sny*w*0.5,
+                    px0 - snx*w*0.5, py0 - sny*w*0.5
+                );
+                grd.addColorStop(0, pal.dark);
+                grd.addColorStop(0.25, pal.body);
+                grd.addColorStop(0.5, pal.light);
+                grd.addColorStop(0.75, pal.body);
+                grd.addColorStop(1, pal.dark);
+
+                ctx.strokeStyle = grd;
+                ctx.lineWidth = w;
+                ctx.beginPath();
+                ctx.moveTo(px0, py0);
+                ctx.lineTo(px1, py1);
+                ctx.stroke();
+
+                if (i === 0) ctx.shadowColor = 'transparent';
+            }
+
+            // ── HORIZONTAL STRIPE BANDS (like reference image) ──
+            for (let t = 0.08; t < 0.92; t += 0.07) {
+                const px = bezAt(t, x1, cp1x, cp2x, x2);
+                const py = bezAt(t, y1, cp1y, cp2y, y2);
+                const w = cellSize * (0.26 - 0.18 * t);
+                // Get perpendicular direction for the stripe
+                const dt = 0.01;
+                const tdx = bezAt(Math.min(t+dt,1), x1, cp1x, cp2x, x2) - bezAt(Math.max(t-dt,0), x1, cp1x, cp2x, x2);
+                const tdy = bezAt(Math.min(t+dt,1), y1, cp1y, cp2y, y2) - bezAt(Math.max(t-dt,0), y1, cp1y, cp2y, y2);
+                const tLen2 = Math.sqrt(tdx*tdx + tdy*tdy) || 1;
+                const pnx = -tdy/tLen2, pny = tdx/tLen2;
+
+                // Draw stripe band across the body
+                ctx.strokeStyle = pal.stripe;
+                ctx.lineWidth = Math.max(2, cellSize * 0.035);
+                ctx.globalAlpha = 0.55;
+                ctx.beginPath();
+                ctx.moveTo(px + pnx * w * 0.4, py + pny * w * 0.4);
+                ctx.lineTo(px - pnx * w * 0.4, py - pny * w * 0.4);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+
+            // ── Belly highlight ──
+            ctx.globalAlpha = 0.2;
+            ctx.strokeStyle = pal.light;
+            ctx.lineWidth = cellSize * 0.05;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+
+            // ── Outline (dark border around body for definition) ──
+            ctx.globalAlpha = 0.25;
+            ctx.strokeStyle = pal.dark;
+            ctx.lineWidth = cellSize * 0.28;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2);
+            // Don't actually stroke a big outline — use a thin one
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = pal.dark;
+            ctx.lineWidth = Math.max(1, cellSize * 0.02);
+            ctx.stroke();
+
+            // ── HEAD (big, round, cartoon-style like reference) ──
+            const bodyAngle = Math.atan2(cp1y - y1, cp1x - x1);
+            const headR = cellSize * 0.22;
+            ctx.save();
+            ctx.translate(x1, y1);
+            ctx.rotate(bodyAngle);
+
+            // Head shape — round/oval, slightly wider than body
+            const hGrad = ctx.createRadialGradient(0, 0, headR*0.1, 0, 0, headR);
+            hGrad.addColorStop(0, pal.light);
+            hGrad.addColorStop(0.4, pal.body);
+            hGrad.addColorStop(1, pal.dark);
+            ctx.fillStyle = hGrad;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, headR, headR * 0.85, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Head outline
+            ctx.strokeStyle = pal.dark;
+            ctx.lineWidth = Math.max(1.5, cellSize * 0.02);
+            ctx.stroke();
+
+            // ── BIG GOOGLY EYES (like reference — large, white, round) ──
+            const eyeX = headR * 0.25;
+            const eyeY = headR * 0.35;
+            const eyeR = cellSize * 0.065;
+
+            // Left eye white
+            ctx.fillStyle = '#fff';
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = Math.max(1, cellSize * 0.012);
+            ctx.beginPath(); ctx.arc(eyeX, -eyeY, eyeR, 0, Math.PI*2);
+            ctx.fill(); ctx.stroke();
+            // Right eye white
+            ctx.beginPath(); ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI*2);
+            ctx.fill(); ctx.stroke();
+
+            // Big round pupils (looking forward/down)
+            const pupilR = eyeR * 0.55;
+            ctx.fillStyle = '#111';
+            ctx.beginPath(); ctx.arc(eyeX + eyeR*0.15, -eyeY + eyeR*0.1, pupilR, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(eyeX + eyeR*0.15, eyeY + eyeR*0.1, pupilR, 0, Math.PI*2); ctx.fill();
+
+            // Eye glints (large, bright)
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(eyeX + eyeR*0.05, -eyeY - eyeR*0.15, eyeR*0.22, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(eyeX + eyeR*0.05, eyeY - eyeR*0.15, eyeR*0.22, 0, Math.PI*2); ctx.fill();
+
+            // ── CUTE SMILE / MOUTH ──
+            ctx.strokeStyle = pal.dark;
+            ctx.lineWidth = Math.max(1.5, cellSize * 0.018);
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.arc(headR * 0.4, 0, headR * 0.32, -0.5, 0.5);
+            ctx.stroke();
+
+            // ── NOSTRILS ──
+            ctx.fillStyle = pal.dark;
+            ctx.beginPath(); ctx.arc(headR * 0.8, -headR*0.12, cellSize*0.015, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(headR * 0.8, headR*0.12, cellSize*0.015, 0, Math.PI*2); ctx.fill();
+
+            // ── FORKED TONGUE (red, extending from mouth) ──
+            const tLen = cellSize * 0.20;
+            ctx.strokeStyle = '#e53935';
+            ctx.lineWidth = Math.max(1.5, cellSize * 0.02);
+            ctx.lineCap = 'round';
+            // Tongue stem
+            ctx.beginPath();
+            ctx.moveTo(headR * 0.9, 0);
+            ctx.lineTo(headR * 0.9 + tLen * 0.55, 0);
+            ctx.stroke();
+            // Left fork
+            ctx.beginPath();
+            ctx.moveTo(headR * 0.9 + tLen * 0.55, 0);
+            ctx.lineTo(headR * 0.9 + tLen, -tLen * 0.22);
+            ctx.stroke();
+            // Right fork
+            ctx.beginPath();
+            ctx.moveTo(headR * 0.9 + tLen * 0.55, 0);
+            ctx.lineTo(headR * 0.9 + tLen, tLen * 0.22);
+            ctx.stroke();
+
+            ctx.restore();
+
+            // ── TAIL TIP (rounded/curled) ──
+            const tailAngle = Math.atan2(y2 - cp2y, x2 - cp2x);
+            const tailTipLen = cellSize * 0.06;
+            ctx.fillStyle = pal.body;
+            ctx.beginPath();
+            ctx.arc(x2 + Math.cos(tailAngle)*tailTipLen*0.5, y2 + Math.sin(tailAngle)*tailTipLen*0.5, cellSize * 0.03, 0, Math.PI*2);
+            ctx.fill();
+
+            // Re-enable shadow for next element
+            ctx.shadowColor = 'rgba(0,0,0,0.30)';
+            ctx.shadowBlur = cellSize * 0.18;
+            ctx.shadowOffsetX = cellSize * 0.06;
+            ctx.shadowOffsetY = cellSize * 0.06;
+        });
+
+        ctx.restore();
+    }
 
     function drawBoard() {
         const homeSize = SQUARE_SIZE * 6;
@@ -908,23 +1660,53 @@ document.addEventListener('DOMContentLoaded', () => {
             let x, y;
             const playerColorSet = tokenPalette(token.player);
             if (token.status === 'home') {
-                const homePos = homePositions[token.player][token.id];
-                x = homePos.x * SQUARE_SIZE;
-                y = homePos.y * SQUARE_SIZE;
+                if (gameMode === 'ludo') {
+                    const homePos = homePositions[token.player][token.id];
+                    x = homePos.x * SQUARE_SIZE;
+                    y = homePos.y * SQUARE_SIZE;
+                } else {
+                    // Snake mode: Start tokens near square 1 (bottom left)
+                    const cellSize = boardSize / 10;
+                    const pos = getSnakeGridPos(0); // Square 1
+                    // Offset slightly so they are visible but "off center"
+                    x = (pos.x - 0.25) * cellSize;
+                    y = pos.y * cellSize + (token.player - 1.5) * (cellSize * 0.2); 
+                }
             } else if (token.status === 'active') {
-                if (token.position > 50) {
-                    const homePathPos = homePaths[token.player][token.position - 51];
+                if (gameMode === 'ludo') {
+                    if (token.position > 50) {
+                        const homePathPos = homePaths[token.player][token.position - 51];
+                        x = (homePathPos.x + 0.5) * SQUARE_SIZE;
+                        y = (homePathPos.y + 0.5) * SQUARE_SIZE;
+                    } else {
+                        const pathPos = path[(token.position + startOffsets[token.player]) % 52];
+                        x = (pathPos.x + 0.5) * SQUARE_SIZE;
+                        y = (pathPos.y + 0.5) * SQUARE_SIZE;
+                    }
+                } else {
+                    // Snake and Ladders grid
+                    const cellSize = boardSize / 10;
+                    const pos = getSnakeGridPos(token.position);
+                    x = pos.x * cellSize;
+                    y = pos.y * cellSize;
+                }
+            } else if (token.status === 'finished') {
+                if (gameMode === 'ludo') {
+                    const homePathPos = homePaths[token.player][5];
                     x = (homePathPos.x + 0.5) * SQUARE_SIZE;
                     y = (homePathPos.y + 0.5) * SQUARE_SIZE;
                 } else {
-                    const pathPos = path[(token.position + startOffsets[token.player]) % 52];
-                    x = (pathPos.x + 0.5) * SQUARE_SIZE;
-                    y = (pathPos.y + 0.5) * SQUARE_SIZE;
+                    const cellSize = boardSize / 10;
+                    const pos = getSnakeGridPos(99); // Square 100
+                    x = pos.x * cellSize;
+                    y = pos.y * cellSize;
                 }
-            } else if (token.status === 'finished') {
-                const homePathPos = homePaths[token.player][5];
-                 x = (homePathPos.x + 0.5) * SQUARE_SIZE;
-                 y = (homePathPos.y + 0.5) * SQUARE_SIZE;
+            }
+            
+            // Path animation override — render at pixel position along snake/ladder
+            if (pathAnimOverride && pathAnimOverride.token === token) {
+                x = pathAnimOverride.x;
+                y = pathAnimOverride.y;
             }
             
             if (x !== undefined) {
@@ -962,8 +1744,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function drawEverything() {
-        drawBoard();
-        drawTokens();
+        if (gameMode === 'ludo') {
+            drawBoard();
+            drawTokens();
+        } else {
+            drawSnakeBoard();
+            drawTokens();
+        }
     }
 
     function updateTurnIndicator() {
@@ -994,19 +1781,33 @@ document.addEventListener('DOMContentLoaded', () => {
         movableTokens.forEach(token => {
             let tokenX, tokenY;
             if (token.status === 'home') {
-                const homePos = homePositions[token.player][token.id];
-                tokenX = homePos.x * SQUARE_SIZE;
-                tokenY = homePos.y * SQUARE_SIZE;
+                if (gameMode === 'ludo') {
+                    const homePos = homePositions[token.player][token.id];
+                    tokenX = homePos.x * SQUARE_SIZE;
+                    tokenY = homePos.y * SQUARE_SIZE;
+                } else {
+                    const cellSize = boardSize / 10;
+                    const pos = getSnakeGridPos(0);
+                    tokenX = (pos.x - 0.25) * cellSize;
+                    tokenY = pos.y * cellSize + (token.player - 1.5) * (cellSize * 0.2);
+                }
             } else if(token.status === 'active') {
-                 if (token.position > 50) {
-                    const homePathPos = homePaths[token.player][token.position - 51];
-                    tokenX = (homePathPos.x + 0.5) * SQUARE_SIZE;
-                    tokenY = (homePathPos.y + 0.5) * SQUARE_SIZE;
-                 } else {
-                    const pathPos = path[(token.position + startOffsets[token.player]) % 52];
-                    tokenX = (pathPos.x + 0.5) * SQUARE_SIZE;
-                    tokenY = (pathPos.y + 0.5) * SQUARE_SIZE;
-                 }
+                if (gameMode === 'ludo') {
+                    if (token.position > 50) {
+                        const homePathPos = homePaths[token.player][token.position - 51];
+                        tokenX = (homePathPos.x + 0.5) * SQUARE_SIZE;
+                        tokenY = (homePathPos.y + 0.5) * SQUARE_SIZE;
+                    } else {
+                        const pathPos = path[(token.position + startOffsets[token.player]) % 52];
+                        tokenX = (pathPos.x + 0.5) * SQUARE_SIZE;
+                        tokenY = (pathPos.y + 0.5) * SQUARE_SIZE;
+                    }
+                } else {
+                    const cellSize = boardSize / 10;
+                    const pos = getSnakeGridPos(token.position);
+                    tokenX = pos.x * cellSize;
+                    tokenY = pos.y * cellSize;
+                }
             }
             if (tokenX !== undefined) {
                 const distance = Math.sqrt(Math.pow(clickX - tokenX, 2) + Math.pow(clickY - tokenY, 2));
@@ -1125,6 +1926,16 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('ludoTwoPlayerPref', JSON.stringify(twoPlayerMode));
             localStorage.removeItem('ludoGameState');
             updateAITogglesState();
+            initializeGame();
+        });
+    }
+
+    if (modeToggleBtn) {
+        modeToggleBtn.addEventListener('click', () => {
+            gameMode = gameMode === 'ludo' ? 'snake' : 'ludo';
+            if (modeText) modeText.textContent = gameMode.charAt(0).toUpperCase() + gameMode.slice(1);
+            localStorage.setItem('ludoGameMode', gameMode);
+            localStorage.removeItem('ludoGameState'); // Reset on mode switch
             initializeGame();
         });
     }
@@ -1267,6 +2078,17 @@ document.addEventListener('DOMContentLoaded', () => {
     
         const savedSoundSetting = JSON.parse(localStorage.getItem('ludoSoundSetting'));
         toggleMute(savedSoundSetting ? savedSoundSetting.muted : false);
+
+        const savedGameState = JSON.parse(localStorage.getItem('ludoGameState'));
+
+        const modePref = localStorage.getItem('ludoGameMode');
+        if (modePref) {
+            gameMode = modePref;
+        } else if (savedGameState && savedGameState.gameMode) {
+            gameMode = savedGameState.gameMode;
+        }
+        
+        if (modeText) modeText.textContent = gameMode.charAt(0).toUpperCase() + gameMode.slice(1);
 
         const prefRaw = localStorage.getItem('ludoTwoPlayerPref');
         if (prefRaw !== null) {
