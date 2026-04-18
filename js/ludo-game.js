@@ -47,8 +47,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiModeCheckbox = document.getElementById('ai-mode-checkbox');
     const aiModeLabel = document.getElementById('ai-mode-label');
     const blockadeCheckbox = document.getElementById('blockade-checkbox');
+    const ludoRulesGroup = document.getElementById('ludo-rules-group');
+    const snakeRulesGroup = document.getElementById('snake-rules-group');
+    const snakeUnlockCheckbox = document.getElementById('snake-unlock-checkbox');
+    const snakeUnlockLabel = document.getElementById('snake-unlock-label');
     const singleWinCheckbox = document.getElementById('single-win-checkbox');
     const gameoverModal = document.getElementById('gameover-modal');
+
+    let snakeUnlockNumber = 1; // 1 or 6
     const gameoverWinnersList = document.getElementById('gameover-winners');
     const gameoverResetBtn = document.getElementById('gameover-reset-btn');
     const getBadgeBtn = document.getElementById('get-badge-btn');
@@ -199,6 +205,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function openSettings() {
         if (!settingsModal) return;
+
+        // Sync rules visibility to mode
+        if (ludoRulesGroup) {
+            if (gameMode === 'snake') ludoRulesGroup.classList.add('hidden');
+            else ludoRulesGroup.classList.remove('hidden');
+        }
+        if (snakeRulesGroup) {
+            if (gameMode !== 'snake') snakeRulesGroup.classList.add('hidden');
+            else snakeRulesGroup.classList.remove('hidden');
+        }
+
         settingsModal.classList.remove('hidden');
         settingsModal.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
@@ -688,6 +705,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function checkForMovableTokens() {
         movableTokens = [];
+        const enterRoll = (gameMode === 'ludo' ? 6 : snakeUnlockNumber);
         const playerTokens = tokens.filter(t => t.player === currentPlayerIndex);
         playerTokens.forEach(token => {
             if (gameMode === 'ludo') {
@@ -695,8 +713,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     movableTokens.push(token);
                 }
             } else {
-                // Snake mode: 1 token, starts at -1 (home), needs a 1 to enter
-                if (token.status === 'home' && diceRoll === 1) {
+                // Snake mode: 1 token, starts at -1 (home), needs a 1 or 6 to enter
+                if (token.status === 'home' && diceRoll === enterRoll) {
                     movableTokens.push(token);
                 } else if (token.status === 'active' && token.position + diceRoll <= 99) {
                     movableTokens.push(token);
@@ -735,10 +753,11 @@ document.addEventListener('DOMContentLoaded', () => {
         movableTokens = [];
         gameMessageEl.textContent = 'Moving...';
 
-        const enterRoll = (gameMode === 'ludo' ? 6 : 1);
+        const enterRoll = (gameMode === 'ludo' ? 6 : snakeUnlockNumber);
         if (token.status === 'home' && diceRoll === enterRoll) {
             token.status = 'active';
-            token.position = 0;
+            // Snake: Move to Square 2 (index 1) on entry roll, Ludo starts at index 0
+            token.position = (gameMode === 'snake' ? 1 : 0);
             drawEverything();
             playSound('move');
             finalizeMove(token);
@@ -1902,6 +1921,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    if (blockadeCheckbox) {
+        blockadeCheckbox.addEventListener('change', (e) => {
+            blockadeRuleEnabled = e.target.checked;
+            localStorage.setItem('ludoBlockadePref', JSON.stringify(blockadeRuleEnabled));
+        });
+    }
+
+    if (snakeUnlockCheckbox) {
+        snakeUnlockCheckbox.addEventListener('change', (e) => {
+            snakeUnlockNumber = e.target.checked ? 6 : 1;
+            if (snakeUnlockLabel) snakeUnlockLabel.textContent = `Unlock token with ${snakeUnlockNumber}`;
+            localStorage.setItem('ludoSnakeUnlockPref', JSON.stringify(snakeUnlockNumber));
+        });
+    }
+
     playerNameInputs.forEach((input, i) => {
         if (input) {
             input.addEventListener('input', (e) => {
@@ -2130,6 +2164,15 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 blockadeRuleEnabled = JSON.parse(blockadePrefRaw);
                 if (blockadeCheckbox) blockadeCheckbox.checked = blockadeRuleEnabled;
+            } catch (e) { /* ignore */ }
+        }
+
+        const snakeUnlockPref = localStorage.getItem('ludoSnakeUnlockPref');
+        if (snakeUnlockPref !== null) {
+            try {
+                snakeUnlockNumber = JSON.parse(snakeUnlockPref);
+                if (snakeUnlockCheckbox) snakeUnlockCheckbox.checked = (snakeUnlockNumber === 6);
+                if (snakeUnlockLabel) snakeUnlockLabel.textContent = `Unlock token with ${snakeUnlockNumber}`;
             } catch (e) { /* ignore */ }
         }
 

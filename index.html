@@ -153,12 +153,28 @@
 
                 <div class="settings-section">
                     <p class="settings-label">Advanced Rules</p>
-                    <label class="mode-bar-label" for="blockade-checkbox">
-                        <input type="checkbox" id="blockade-checkbox" aria-label="Enable Blockades">
-                        <span class="mode-toggle" aria-hidden="true"></span>
-                        <span>Enable Blockades</span>
-                    </label>
-                    <p class="mode-hint">If a player has 2 or more tokens on the same spot, they become invincible and cannot be captured.</p>
+                    
+                    <!-- Ludo-specific Rules -->
+                    <div id="ludo-rules-group">
+                        <label class="mode-bar-label" for="blockade-checkbox">
+                            <input type="checkbox" id="blockade-checkbox" aria-label="Enable Blockades">
+                            <span class="mode-toggle" aria-hidden="true"></span>
+                            <span>Enable Blockades</span>
+                        </label>
+                        <p class="mode-hint">If a player has 2 or more tokens on the same spot, they become invisible and cannot be captured.</p>
+                    </div>
+
+                    <!-- Snake-specific Rules -->
+                    <div id="snake-rules-group" class="hidden">
+                        <label class="mode-bar-label" for="snake-unlock-checkbox">
+                            <input type="checkbox" id="snake-unlock-checkbox" aria-label="Unlock with 6">
+                            <span class="mode-toggle" aria-hidden="true"></span>
+                            <span id="snake-unlock-label">Unlock token with 1</span>
+                        </label>
+                        <p class="mode-hint">Choose if you need a 1 or a 6 to enter the board.</p>
+                    </div>
+
+                    <!-- Shared Rules -->
                     <label class="mode-bar-label" for="single-win-checkbox" style="margin-top: 10px;">
                         <input type="checkbox" id="single-win-checkbox" aria-label="Single Player Win">
                         <span class="mode-toggle" aria-hidden="true"></span>
