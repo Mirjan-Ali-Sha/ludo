@@ -756,8 +756,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const enterRoll = (gameMode === 'ludo' ? 6 : snakeUnlockNumber);
         if (token.status === 'home' && diceRoll === enterRoll) {
             token.status = 'active';
-            // Snake: Move to Square 2 (index 1) on entry roll, Ludo starts at index 0
-            token.position = (gameMode === 'snake' ? 1 : 0);
+            // Entry always lands on the first square (position 0)
+            token.position = 0;
             drawEverything();
             playSound('move');
             finalizeMove(token);
@@ -1103,7 +1103,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (diceBox) diceBox.style.cursor = 'not-allowed';
             showGameOver();
         } else {
-            const reRollVal = (gameMode === 'ludo' ? 6 : 1);
+            const reRollVal = (gameMode === 'ludo' ? 6 : snakeUnlockNumber);
             if (diceRoll === reRollVal || captureMadeThisTurn || tokenFinishedThisTurn) {
                 gameState = 'roll';
                 if (diceBox) diceBox.style.cursor = 'pointer';
@@ -2113,103 +2113,127 @@ document.addEventListener('DOMContentLoaded', () => {
         hideInstallBanner();
     });
 
-    splashScreen.addEventListener('transitionend', () => {
-        splashScreen.classList.add('hidden');
+    let gameStarted = false;
+    function startGame() {
+        if (gameStarted) return;
+        gameStarted = true;
+
+        // Ensure splash is hidden
+        if (splashScreen) {
+            splashScreen.classList.add('hidden');
+            splashScreen.style.display = 'none';
+        }
         document.body.style.overflow = 'auto';
 
-        gameWrapper.classList.remove('hidden');
-
-        const savedSoundSetting = JSON.parse(localStorage.getItem('ludoSoundSetting'));
-        toggleMute(savedSoundSetting ? savedSoundSetting.muted : false);
-
-        const savedGameState = JSON.parse(localStorage.getItem('ludoGameState'));
-
-        const modePref = localStorage.getItem('ludoGameMode');
-        if (modePref) {
-            gameMode = modePref;
-        } else if (savedGameState && savedGameState.gameMode) {
-            gameMode = savedGameState.gameMode;
+        if (gameWrapper) {
+            gameWrapper.classList.remove('hidden');
         }
 
-        if (modeToggleCheckbox) modeToggleCheckbox.checked = (gameMode === 'snake');
-        updateGameTitle();
+        try {
+            const savedSoundSetting = JSON.parse(localStorage.getItem('ludoSoundSetting'));
+            toggleMute(savedSoundSetting ? savedSoundSetting.muted : false);
 
-        const prefRaw = localStorage.getItem('ludoTwoPlayerPref');
-        if (prefRaw !== null) {
-            try {
-                twoPlayerMode = JSON.parse(prefRaw);
-                if (twoPlayerCheckbox) twoPlayerCheckbox.checked = twoPlayerMode;
-            } catch (e) { /* ignore */ }
-        }
+            const savedGameState = JSON.parse(localStorage.getItem('ludoGameState'));
 
-        const aiPrefRaw = localStorage.getItem('ludoAIPref');
-        if (aiPrefRaw !== null) {
-            try {
-                const config = JSON.parse(aiPrefRaw);
-                computerPlayers = config.players || [false, false, false, false];
-                aiMode = config.mode || 'balanced';
-                for (let i = 0; i < 4; i++) {
-                    if (aiCheckboxes[i]) aiCheckboxes[i].checked = computerPlayers[i];
-                }
-                if (aiModeCheckbox) {
-                    aiModeCheckbox.checked = (aiMode === 'aggressive');
-                    if (aiModeLabel) aiModeLabel.textContent = aiMode === 'aggressive' ? 'Aggressive' : 'Balanced';
-                }
-            } catch (e) { /* ignore */ }
-        }
-        updateAITogglesState();
+            const modePref = localStorage.getItem('ludoGameMode');
+            if (modePref) {
+                gameMode = modePref;
+            } else if (savedGameState && savedGameState.gameMode) {
+                gameMode = savedGameState.gameMode;
+            }
 
-        const blockadePrefRaw = localStorage.getItem('ludoBlockadePref');
-        if (blockadePrefRaw !== null) {
-            try {
-                blockadeRuleEnabled = JSON.parse(blockadePrefRaw);
-                if (blockadeCheckbox) blockadeCheckbox.checked = blockadeRuleEnabled;
-            } catch (e) { /* ignore */ }
-        }
+            if (modeToggleCheckbox) modeToggleCheckbox.checked = (gameMode === 'snake');
+            updateGameTitle();
 
-        const snakeUnlockPref = localStorage.getItem('ludoSnakeUnlockPref');
-        if (snakeUnlockPref !== null) {
-            try {
-                snakeUnlockNumber = JSON.parse(snakeUnlockPref);
-                if (snakeUnlockCheckbox) snakeUnlockCheckbox.checked = (snakeUnlockNumber === 6);
-                if (snakeUnlockLabel) snakeUnlockLabel.textContent = `Unlock token with ${snakeUnlockNumber}`;
-            } catch (e) { /* ignore */ }
-        }
+            const prefRaw = localStorage.getItem('ludoTwoPlayerPref');
+            if (prefRaw !== null) {
+                try {
+                    twoPlayerMode = JSON.parse(prefRaw);
+                    if (twoPlayerCheckbox) twoPlayerCheckbox.checked = twoPlayerMode;
+                } catch (e) { /* ignore */ }
+            }
 
-        const singleWinPrefRaw = localStorage.getItem('ludoSingleWinPref');
-        if (singleWinPrefRaw !== null) {
-            try {
-                singleWinMode = JSON.parse(singleWinPrefRaw);
-                if (singleWinCheckbox) singleWinCheckbox.checked = singleWinMode;
-            } catch (e) { /* ignore */ }
-        }
+            const aiPrefRaw = localStorage.getItem('ludoAIPref');
+            if (aiPrefRaw !== null) {
+                try {
+                    const config = JSON.parse(aiPrefRaw);
+                    computerPlayers = config.players || [false, false, false, false];
+                    aiMode = config.mode || 'balanced';
+                    for (let i = 0; i < 4; i++) {
+                        if (aiCheckboxes[i]) aiCheckboxes[i].checked = computerPlayers[i];
+                    }
+                    if (aiModeCheckbox) {
+                        aiModeCheckbox.checked = (aiMode === 'aggressive');
+                        if (aiModeLabel) aiModeLabel.textContent = aiMode === 'aggressive' ? 'Aggressive' : 'Balanced';
+                    }
+                } catch (e) { /* ignore */ }
+            }
+            updateAITogglesState();
 
-        const namePrefRaw = localStorage.getItem('ludoPlayerNames');
-        if (namePrefRaw !== null) {
-            try {
-                playerNames = JSON.parse(namePrefRaw);
-                playerNames.forEach((name, i) => {
-                    if (playerNameInputs[i]) playerNameInputs[i].value = (name !== DEFAULT_PLAYER_NAMES[i]) ? name : '';
-                });
-                syncAILabels();
-            } catch (e) { /* ignore */ }
-        }
+            const blockadePrefRaw = localStorage.getItem('ludoBlockadePref');
+            if (blockadePrefRaw !== null) {
+                try {
+                    blockadeRuleEnabled = JSON.parse(blockadePrefRaw);
+                    if (blockadeCheckbox) blockadeCheckbox.checked = blockadeRuleEnabled;
+                } catch (e) { /* ignore */ }
+            }
 
-        if (!loadGame()) {
+            const snakeUnlockPref = localStorage.getItem('ludoSnakeUnlockPref');
+            if (snakeUnlockPref !== null) {
+                try {
+                    snakeUnlockNumber = JSON.parse(snakeUnlockPref);
+                    if (snakeUnlockCheckbox) snakeUnlockCheckbox.checked = (snakeUnlockNumber === 6);
+                    if (snakeUnlockLabel) snakeUnlockLabel.textContent = `Unlock token with ${snakeUnlockNumber}`;
+                } catch (e) { /* ignore */ }
+            }
+
+            const singleWinPrefRaw = localStorage.getItem('ludoSingleWinPref');
+            if (singleWinPrefRaw !== null) {
+                try {
+                    singleWinMode = JSON.parse(singleWinPrefRaw);
+                    if (singleWinCheckbox) singleWinCheckbox.checked = singleWinMode;
+                } catch (e) { /* ignore */ }
+            }
+
+            const namePrefRaw = localStorage.getItem('ludoPlayerNames');
+            if (namePrefRaw !== null) {
+                try {
+                    playerNames = JSON.parse(namePrefRaw);
+                    playerNames.forEach((name, i) => {
+                        if (playerNameInputs[i]) playerNameInputs[i].value = (name !== DEFAULT_PLAYER_NAMES[i]) ? name : '';
+                    });
+                    syncAILabels();
+                } catch (e) { /* ignore */ }
+            }
+
+            if (!loadGame()) {
+                initializeGame();
+            }
+
+            requestAnimationFrame(() => {
+                handleResize();
+                requestAnimationFrame(handleResize);
+            });
+
+            refreshInstalledState().finally(() => {
+                scheduleInstallBanner(500);
+            });
+        } catch (err) {
+            console.error("Critical error during game start:", err);
+            // Fallback to fresh game if something is corrupted
             initializeGame();
         }
+    }
 
-        requestAnimationFrame(() => {
-            handleResize();
-            requestAnimationFrame(handleResize);
-        });
+    if (splashScreen) {
+        splashScreen.addEventListener('transitionend', startGame, { once: true });
+    }
 
-        refreshInstalledState().finally(() => {
-            scheduleInstallBanner(500);
-        });
-    }, { once: true });
+    // Backup: force start after 4 seconds total (3s delay + 1s transition)
+    setTimeout(startGame, 4500);
 
+    // Initial timeout to start the fade
     setTimeout(() => {
-        splashScreen.style.opacity = '0';
+        if (splashScreen) splashScreen.style.opacity = '0';
     }, 3000);
 });
