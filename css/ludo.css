@@ -104,15 +104,15 @@ body {
 
 .game-header__row {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: space-between;
-    gap: 8px 12px;
+    gap: 8px;
 }
 
 .game-title {
     margin: 0;
-    font-size: clamp(1.15rem, 4vw, 1.45rem);
+    font-size: clamp(0.9rem, 3.5vw, 1.35rem);
     font-weight: 800;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -120,6 +120,11 @@ body {
     text-shadow:
         0 1px 0 rgba(255, 255, 255, 0.12),
         0 2px 8px rgba(0, 0, 0, 0.45);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+    min-width: 0; /* Ensures truncation works within flex container */
 }
 
 .game-title__sub {
@@ -132,6 +137,7 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .icon-btn {
